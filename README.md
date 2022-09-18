@@ -19,6 +19,12 @@ __TOC__
 
 ### Getting Started
 > Coming soon.
+> 
+> `./build-docker.sh`
+> 
+> `docker run -v $(PWD)/.env:/data/.env discord_taskbot`
+>
+> Or just `pip3 install .` and then `discord-taskbot run <envfile here>`. *discordtb* is an alias for *discord-taskbot*.
 
 ### Documentation
 > Haha, nope.
