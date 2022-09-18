@@ -3,3 +3,7 @@ __pycache__
 
 # ignore .env files
 *.env
+
+# pip install build artifacts
+build
+*.egg-info
