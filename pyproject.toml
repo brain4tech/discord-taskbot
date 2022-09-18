@@ -1,0 +1,30 @@
+[build-system]
+requires = ['setuptools']
+build-backend = 'setuptools.build_meta'
+
+[project]
+name = "discord_taskbot"
+description = "Task management utility for small programming teams using Discord."
+readme = "README.md"
+requires-python = ">=3.10.6"
+license = {text = "Unset"}
+classifiers = [
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+]
+dynamic = ["version", "dependencies"]
+
+[project.scripts]
+discord-taskbot = "discord_taskbot.cli:command_line_entry_point"
+discordtb = "discord_taskbot.cli:command_line_entry_point"
+
+[tool.setuptool]
+include-package-data = true
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["discord_taskbot*"]
+
+[tool.setuptools.dynamic]
+version = {attr = "discord_taskbot.__version__"}
+dependencies = {file = "requirements.txt"}
