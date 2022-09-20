@@ -2,20 +2,21 @@
 ORM models.
 """
 
+from contextlib import nullcontext
 from sqlalchemy.orm import declarative_base
 from sqlalchemy import Column, Integer, String, ForeignKey
 
 ORM_BASE = declarative_base()
 
-__all__ = ['Project', 'Task']
+__all__ = ['Project', 'Task', 'Env']
 
 class Project(ORM_BASE):
     """Database table to store all projects."""
     __tablename__ = 'projects'
 
-    id = Column(Integer, primary_key=True)
-    tag = Column(String)
-    name = Column(String)
+    tag = Column(String, primary_key=True)
+    id = Column(Integer, nullable=False, default=-1)
+    display_name = Column(String)
     description = Column(String)
     channel_id = Column(Integer)
 
@@ -33,3 +34,10 @@ class Task(ORM_BASE):
     assigned_to = Column(Integer)
     message_id = Column(Integer, nullable = False)
     thread_id = Column(Integer)
+
+class Env(ORM_BASE):
+    """Database table to store bot states."""
+    __tablename__ = 'env'
+
+    name = Column(String, primary_key = True)
+    value = Column(String, nullable=False)
