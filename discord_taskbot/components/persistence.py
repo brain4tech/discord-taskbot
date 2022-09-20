@@ -54,7 +54,7 @@ class PersistenceAPI:
 
             session.flush(); session.commit()
 
-    def add_project(self, tag:str, displayname: str, description: str, channel_id: int) -> None:
+    def add_project(self, tag: str, displayname: str, description: str, channel_id: int) -> None:
         """Create a new project."""
 
         # check if channel is already a project
@@ -73,12 +73,34 @@ class PersistenceAPI:
             session.flush()
 
             session.commit()
+    
+    def update_project(self, tag: str, displayname: str = "", description: str = "") -> None:
+        """Update a project's display name and description."""
+        displayname = str(displayname).strip()
+        description = str(description).strip()
+        
+        with Session(self._engine) as session:
+            p: Project = session.query(Project).filter(Project.tag == tag).first()
+
+            if displayname:
+                p.display_name = displayname
+
+            if description:
+                p.description = description
+            
+            session.flush(); session.commit()
 
     def add_task(self, projectid, name: str, description: str) -> None:
         """Create a new task for a project."""
 
     def update_task(self, id: int, name: str = "", description: str = "", status: str = "", assigned_to: int = "", thread_id: int = "") -> None:
         """Update a task."""
+    
+    def get_project_to_channel(self, channel_id: int) -> Project | None:
+        """Get a project to a given channel. Returns the project or None if none found."""
+        with Session(self._engine) as session:
+            p: Project = session.query(Project).filter(Project.channel_id == channel_id).first()
+            return p
     
     def get_assigned_project_channels(self) -> list[int]:
         """Get all assigned project channel ids."""
