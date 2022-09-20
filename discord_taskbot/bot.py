@@ -7,6 +7,7 @@ import discord, asyncio
 
 import discord_taskbot.components.models as models
 from discord_taskbot.components.persistence import PersistenceAPI
+from discord_taskbot.components.exceptions import DiscordTBException
 
 from discord_taskbot.utils import TaskBot, modals, functions
 from discord_taskbot.utils import INTENTS
@@ -24,7 +25,16 @@ async def on_ready():
 
 @BOT.event
 async def on_message(message: discord.Message):
-    print (message.clean_content)
+
+    channel_ids = BOT.db.get_assigned_project_channels()
+
+    # if message is an interaction (app command, modal submission, ...), return
+    if message.interaction:
+        return
+
+    # if message no interaction and channel is registered, delete message
+    if message.channel.id in channel_ids:
+        await message.delete()
 
 @BOT.event
 async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
@@ -84,6 +94,8 @@ async def new_project(interaction: discord.Interaction, tag: str, displayname: s
         BOT.db.add_project(tag, displayname, description, interaction.channel_id)
     except IntegrityError:
         await interaction.followup.send(f"Could not create project `{displayname}` as it already exists.")
+    except DiscordTBException as e:
+        await interaction.followup.send(f"Could not create project `{displayname}`: {e}")
     except Exception:
         traceback.print_exc()
         await interaction.followup.send(f"Something went wrong while creating `{displayname}`.")
