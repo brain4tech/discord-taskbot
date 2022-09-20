@@ -4,7 +4,6 @@
 *Task management utility for small programming teams.*
 **README is in development. Documentation and decisions may change!**
 
-__TOC__
 
 ### Features
 - Create new projects and assign them to a text channel
