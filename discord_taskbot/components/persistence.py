@@ -66,8 +66,6 @@ class PersistenceAPI:
             p = Project(tag=tag, display_name=displayname, description=description, channel_id=channel_id)
             p.id = int(self._cache.get("PROJECT_ID_COUNT")) + 1
             session.query(Env).filter(Env.name == "PROJECT_ID_COUNT").first().value = str(p.id)
-
-            self._cache.get("project_channel_ids").add(channel_id)
             
             session.add(p)
             session.flush()
