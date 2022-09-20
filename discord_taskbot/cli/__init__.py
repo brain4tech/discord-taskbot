@@ -45,6 +45,13 @@ class CLIHandler:
         parser_run.add_argument('envfile', help="attach an .env file")
         parser_run.set_defaults(func=self._subcommand_run)
 
+        # 'db-run' subcommand
+        parser_run = subparsers.add_parser(
+            name='db-run',
+            description="Run and test the db connection startup script.",
+            help='run the db')
+        parser_run.set_defaults(func=self._subcommand_db_run)
+
         self._parser = parser
 
     def execute(self) -> None:
@@ -96,7 +103,12 @@ class CLIHandler:
         TOKEN = os.getenv("TOKEN")
 
         BOT.run(TOKEN)
+    
+    def _subcommand_db_run(self, args: argparse.Namespace) -> None:
+        from discord_taskbot.components.persistence import PersistenceAPI
 
+        db = PersistenceAPI()
+        db.startup()
 
 def command_line_entry_point(argv: list[str] = None):
     """Execute a command line handler."""
