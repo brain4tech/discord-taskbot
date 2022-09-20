@@ -86,12 +86,12 @@ async def new_task_arguments(interaction: discord.Interaction, title: str, descr
     await functions.send_new_task(interaction.channel, title, description)
 
 @tree.command(name="newproject")
-async def new_project(interaction: discord.Interaction, tag: str, displayname: str, description: str):
+async def new_project(interaction: discord.Interaction, id: str, displayname: str, description: str) -> None:
     """Assign a new project to this channel."""
 
     await interaction.response.defer()
     try:
-        BOT.db.add_project(tag, displayname, description, interaction.channel_id)
+        BOT.db.add_project(id, displayname, description, interaction.channel_id)
     except IntegrityError:
         await interaction.followup.send(f"Could not create project `{displayname}` as it already exists.")
     except DiscordTBException as e:
@@ -99,5 +99,29 @@ async def new_project(interaction: discord.Interaction, tag: str, displayname: s
     except Exception:
         traceback.print_exc()
         await interaction.followup.send(f"Something went wrong while creating `{displayname}`.")
-    else: await interaction.followup.send(f"Created new project `{displayname}`. From now on, all non-command messages will be deleted.")
+
+    else:
+        await interaction.followup.send(f"Created new project `{displayname}`. From now on, all non-command messages will be deleted.")
+
+@tree.command(name="editproject")
+async def edit_project(interaction: discord.Interaction) -> None:
+    """Edit a project with a pop-up."""
+    
+    p = BOT.db.get_project_to_channel(interaction.channel_id)
+    if not p:
+        await interaction.response.send_message(f"This channel is not bound to a project.")
+        return
+
+    async def modal_func(interaction: discord.Interaction, new_displayname: str, new_description: str) -> None:
+        await interaction.response.defer()
+
+        try:
+            BOT.db.update_project(p.tag, new_displayname, new_description)
+        except:
+            await interaction.followup.send(f"Something went wrong while updating `{p.tag}`.")
+        else:
+            await interaction.followup.send(f"Successfully updated `{p.tag}`.")
+
+    modal = BOT.generate_edit_project_modal(p.tag, p.display_name, p.description, modal_func)
+    await interaction.response.send_modal(modal())
      
