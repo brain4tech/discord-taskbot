@@ -2,6 +2,7 @@
 The actual discord bot.
 """
 
+import traceback
 import discord, asyncio
 
 import discord_taskbot.components.models as models
@@ -9,6 +10,8 @@ from discord_taskbot.components.persistence import PersistenceAPI
 
 from discord_taskbot.utils import TaskBot, modals, functions
 from discord_taskbot.utils import INTENTS
+
+from sqlalchemy.exc import IntegrityError
 
 BOT = TaskBot(intents=INTENTS)
 tree = BOT.tree
@@ -71,3 +74,18 @@ async def new_task_arguments(interaction: discord.Interaction, title: str, descr
     """Create a new task without a modal window."""
 
     await functions.send_new_task(interaction.channel, title, description)
+
+@tree.command(name="newproject")
+async def new_project(interaction: discord.Interaction, tag: str, displayname: str, description: str):
+    """Assign a new project to this channel."""
+
+    await interaction.response.defer()
+    try:
+        BOT.db.add_project(tag, displayname, description, interaction.channel_id)
+    except IntegrityError:
+        await interaction.followup.send(f"Could not create project `{displayname}` as it already exists.")
+    except Exception:
+        traceback.print_exc()
+        await interaction.followup.send(f"Something went wrong while creating `{displayname}`.")
+    else: await interaction.followup.send(f"Created new project `{displayname}`. From now on, all non-command messages will be deleted.")
+     
