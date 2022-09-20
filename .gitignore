@@ -7,3 +7,6 @@ __pycache__
 # pip install build artifacts
 build
 *.egg-info
+
+# dev database
+data.db
