@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from .models import Project, Task, Env, ORM_BASE
 from .cache import PersistenceCache
 from sqlalchemy.engine import Engine
+from .exceptions import ChannelAlreadyInUse
 
 __all__ = ['PersistenceAPI']
 
@@ -49,7 +50,6 @@ class PersistenceAPI:
                 env_dict_copy.pop(var.name, None)
             
             for var in env_dict_copy.values():
-                print(var)
                 session.add(var)
 
             session.flush(); session.commit()
@@ -57,10 +57,17 @@ class PersistenceAPI:
     def add_project(self, tag:str, displayname: str, description: str, channel_id: int) -> None:
         """Create a new project."""
 
+        # check if channel is already a project
+        channel_ids = self.get_assigned_project_channels()
+        if channel_id in channel_ids:
+            raise ChannelAlreadyInUse("This channel is already in use for another project.")
+
         with Session(self._engine) as session:
             p = Project(tag=tag, display_name=displayname, description=description, channel_id=channel_id)
             p.id = int(self._cache.get("PROJECT_ID_COUNT")) + 1
             session.query(Env).filter(Env.name == "PROJECT_ID_COUNT").first().value = str(p.id)
+
+            self._cache.get("project_channel_ids").add(channel_id)
             
             session.add(p)
             session.flush()
@@ -72,3 +79,16 @@ class PersistenceAPI:
 
     def update_task(self, id: int, name: str = "", description: str = "", status: str = "", assigned_to: int = "", thread_id: int = "") -> None:
         """Update a task."""
+    
+    def get_assigned_project_channels(self) -> list[int]:
+        """Get all assigned project channel ids."""
+
+        channels = set()
+
+        with Session(self._engine) as session:
+            result = session.query(Project.channel_id).all()
+        
+            for r in result:
+                channels.add(r[0])
+        
+        return channels
