@@ -34,7 +34,7 @@ async def on_message(message: discord.Message):
         return
 
     # if message no interaction and channel is registered, delete message
-    if message.channel.id in channel_ids:
+    if message.channel.id in channel_ids and message.author.id != BOT.user.id:
         await message.delete()
 
 @BOT.event
@@ -76,25 +76,57 @@ async def ping(interaction: discord.Interaction):
     # await interaction.channel.send("")
 
 @tree.command(name="newtask")
-async def new_task(interaction: discord.Interaction):
+async def new_task(interaction: discord.Interaction, title: str, description: str):
     """Create a new task."""
 
-    async def modal_func(interaction: discord.Interaction, title: str, description: str):
-        await interaction.response.defer()
-        await BOT.send_new_task(interaction.channel, title, description)
-
-    modal = BOT.generate_create_task_modal(project="PROJECTNAME HERE!", function=modal_func)
-    await interaction.response.send_modal(modal())
-
-@tree.command(name="newtaska")
-async def new_task_arguments(interaction: discord.Interaction, title: str, description: str):
-    """Create a new task without a modal window."""
-
     await interaction.response.defer()
-    await BOT.send_new_task(interaction.channel, title, description)
+
+    # check if channel id is valid
+    project = BOT.db.get_project_to_channel(interaction.channel_id)
+    if not project:
+        await interaction.followup.send(f"This channel is not assigned to a project. Try again in a valid project channel. Entered information:\n\n{title}\n{description}")
+        return
+
+    try:
+        task_id = BOT.db.add_task(project.id, title, description)
+    except Exception:
+        print (traceback.format_exc())
+        await interaction.followup.send("Something went wrong while creating a new task.")
+        return
+    
+    message = await BOT.send_new_task(interaction.channel, BOT.db.get_number_to_task(task_id), title, description)
+    BOT.db.update_task_message_id(task_id, message.id)
     await interaction.followup.send(f"Task created successfully.")
     await asyncio.sleep(1)
     await interaction.delete_original_response()
+
+@tree.command(name="newtaskm")
+async def new_task_modal(interaction: discord.Interaction):
+    """Create a new task with a modal window."""
+
+    async def modal_func(interaction: discord.Interaction, title: str, description: str):
+        await interaction.response.send_message("Creating new task...")
+
+        try:
+            task_id = BOT.db.add_task(project.id, title, description)
+        except Exception:
+            print (traceback.format_exc())
+            await interaction.followup.send("Something went wrong while creating a new task.")
+            return
+        
+        message = await BOT.send_new_task(interaction.channel, BOT.db.get_number_to_task(task_id), title, description)
+        BOT.db.update_task_message_id(task_id, message.id)
+        await interaction.edit_original_response(content=f"Task created successfully.")
+        await asyncio.sleep(1)
+        await interaction.delete_original_response()
+
+    project = BOT.db.get_project_to_channel(interaction.channel_id)
+    if not project:
+        await interaction.response.send_message(f"This channel is not assigned to a project. Try again in a valid project channel. Entered information:\n\n{title}\n{description}")
+        return
+
+    modal = BOT.generate_create_task_modal(project=project.display_name, function=modal_func)
+    await interaction.response.send_modal(modal())
 
 @tree.command(name="newproject")
 async def new_project(interaction: discord.Interaction, id: str, displayname: str, description: str) -> None:
