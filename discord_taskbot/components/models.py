@@ -41,3 +41,12 @@ class Env(ORM_BASE):
 
     name = Column(String, primary_key = True)
     value = Column(String, nullable=False)
+
+
+class Emoji(ORM_BASE):
+    """Database table to store task action emojis."""
+    __tablename__ = 'emojis'
+
+    id = Column(String, primary_key = True)
+    emoji = Column(String, nullable=False)
+    position = Column(Integer, nullable=False)
