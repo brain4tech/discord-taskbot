@@ -8,6 +8,7 @@ from .models import Project, Task, Env, Emoji, ORM_BASE
 from .cache import PersistenceCache
 from sqlalchemy.engine import Engine
 from .exceptions import ChannelAlreadyInUse, EmojiDoesNotExist, CannotBeUpdated
+import copy
 
 from discord_taskbot.utils.constants import TASK_EMOJI_IDS, DEFAULT_TASK_EMOJI_MAPPING
 
@@ -200,8 +201,14 @@ class PersistenceAPI:
     def get_number_to_task(self, task_id: int) -> int | None:
         """Get a task number to a given task id. This is independent from the project as each task has a unique id."""
         with Session(self._engine) as session:
-            p: Task = session.query(Task).filter(Task.id == task_id).first()
-            return p.number
+            t: Task = session.query(Task).filter(Task.id == task_id).first()
+            return t.number
+    
+    def get_task_to_message_id(self, message_id: int) -> Task | None:
+        """Get a task through a message id."""
+        with Session(self._engine) as session:
+            t: Task = session.query(Task).filter(Task.message_id == message_id).first()
+            return copy.copy(t)
 
     def get_project_to_channel(self, channel_id: int) -> Project | None:
         """Get a project to a given channel. Returns the project or None if none found."""
