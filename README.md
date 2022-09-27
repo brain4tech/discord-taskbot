@@ -12,6 +12,7 @@
     - Set status to 'Pendig', 'In Progress', 'Merge ready' and 'Done'
     - Self-assign tasks
     - Discuss the task in a separate thread
+    - Customize reaction emojis
 
 - Use discords native app commands with an intuitive command set
 - Discord modals for nice task editing, overviews and user experience
