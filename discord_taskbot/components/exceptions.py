@@ -13,3 +13,6 @@ class ChannelAlreadyInUse(DiscordTBException):
 
 class EmojiDoesNotExist(DiscordTBException):
     """Exception thrown when an emoji id does not exist in the database."""
+
+class CannotBeUpdated(DiscordTBException):
+    """Exception thrown when a field can be updated only once."""
