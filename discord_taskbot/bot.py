@@ -122,7 +122,7 @@ async def new_task_modal(interaction: discord.Interaction):
 
     project = BOT.db.get_project_to_channel(interaction.channel_id)
     if not project:
-        await interaction.response.send_message(f"This channel is not assigned to a project. Try again in a valid project channel. Entered information:\n\n{title}\n{description}")
+        await interaction.response.send_message(f"This channel is not assigned to a project. Try again in a valid project channel.")
         return
 
     modal = BOT.generate_create_task_modal(project=project.display_name, function=modal_func)
