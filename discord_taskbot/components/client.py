@@ -21,8 +21,8 @@ class TaskBot(discord.Client):
     async def setup_hook(self):
         await self.tree.sync()
     
-    async def send_new_task(self, channel: discord.TextChannel, title: str, description: str) -> None:
-        message: discord.Message = await channel.send(f"**Task #{0}:** {title}\n{description}")
+    async def send_new_task(self, channel: discord.TextChannel, number: int, title: str, description: str) -> discord.Message:
+        message: discord.Message = await channel.send(f"**Task #{number}:** {title}\n{description}")
 
         task_emojis = self.db.get_task_action_emoji_mapping()
 
@@ -33,6 +33,8 @@ class TaskBot(discord.Client):
                 # use default emoji in case of an exception
                 print("ERROR! {e} Using fallback emoji from default list.")
                 await message.add_reaction(DEFAULT_TASK_EMOJI_MAPPING[id])
+        
+        return message
 
     
     def generate_create_task_modal(self, project: str, function) -> ui.Modal:
