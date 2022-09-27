@@ -7,7 +7,7 @@ import discord, asyncio
 
 import discord_taskbot.components.models as models
 from discord_taskbot.components.persistence import PersistenceAPI
-from discord_taskbot.components.exceptions import DiscordTBException
+from discord_taskbot.components.exceptions import DiscordTBException, CannotBeUpdated
 from discord_taskbot.components.client import TaskBot
 
 from discord_taskbot.utils import modals, functions
@@ -50,6 +50,8 @@ async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
     if user.bot:
         return
 
+    # TODO emojis do not match custom ones. Get emojis from db and compare them.
+
     match str(payload.emoji):
         case '🔴':
             print ("Set status to 'pending'.")
@@ -61,8 +63,13 @@ async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
             print (f"Task self-assigned by {user.name}")
         case '📰':
             thread_name = message.clean_content.split("\n")[0]
-            await message.create_thread(name=thread_name, auto_archive_duration=None)
-            print ("Opening discussion thread.")
+            thread = await message.create_thread(name=thread_name, auto_archive_duration=None)
+            task = BOT.db.get_task_to_message_id(message.id)
+            if task:
+                try:
+                    BOT.db.update_task_thread_id(task.id, thread.id)
+                except CannotBeUpdated:
+                    pass
         case '✅':
             print ("Marking task as done.")
 
