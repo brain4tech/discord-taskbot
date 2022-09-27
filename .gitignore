@@ -10,3 +10,6 @@ build
 
 # dev database
 data.db
+
+# stupid mac stuff
+.DS_STORE
