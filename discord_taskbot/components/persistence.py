@@ -189,6 +189,9 @@ class PersistenceAPI:
     def update_task_thread_id(self, task_id: int, thread_id: int) -> None:
         """Update a task's thread id."""
 
+        # TODO technically, we don't need any checks. According to the docs, the thread-id is the same
+        # as the thread's origin message
+
         with Session(self._engine) as session:
             t: Task = session.query(Task).filter(Task.id == task_id).first()
 
@@ -202,13 +205,13 @@ class PersistenceAPI:
         """Get a task number to a given task id. This is independent from the project as each task has a unique id."""
         with Session(self._engine) as session:
             t: Task = session.query(Task).filter(Task.id == task_id).first()
-            return t.number
+            return t.number if t else None
     
     def get_task_to_message_id(self, message_id: int) -> Task | None:
         """Get a task through a message id."""
         with Session(self._engine) as session:
             t: Task = session.query(Task).filter(Task.message_id == message_id).first()
-            return copy.copy(t)
+            return copy.copy(t) if t else None
 
     def get_project_to_channel(self, channel_id: int) -> Project | None:
         """Get a project to a given channel. Returns the project or None if none found."""
@@ -228,6 +231,12 @@ class PersistenceAPI:
                 channels.add(r[0])
         
         return channels
+    
+    def get_emoji_id_to_emoji(self, emoji: str) -> str | None:
+        """Get the emoji id of an emoji."""
+        with Session(self._engine) as session:
+            e: Emoji = session.query(Emoji).filter(Emoji.emoji == emoji).first()
+            return e.id if e else None
 
     def update_task_action_emoji(self, id: str, emoji: str) -> None:
         """Update a task action emoji."""
@@ -239,7 +248,6 @@ class PersistenceAPI:
             e.emoji = emoji
 
             session.flush(); session.commit()
-
 
     def get_task_action_emoji_mapping(self) -> dict[str, str]:
         """Get all task action emoji in a map {id: emoji}."""
