@@ -136,3 +136,15 @@ async def edit_project(interaction: discord.Interaction) -> None:
     modal = BOT.generate_edit_project_modal(p.tag, p.display_name, p.description, modal_func)
     await interaction.response.send_modal(modal())
      
+@tree.command(name="setemoji")
+async def set_emoji(interaction: discord.Interaction, emoji_id: str, emoji: str) -> None:
+    """Update a task action emoji"""
+
+    await interaction.response.defer()
+
+    try:
+        BOT.db.update_task_action_emoji(emoji_id, emoji)
+    except DiscordTBException as e:
+        await interaction.followup.send(f"{e} You can only choose from {' | '.join(list(BOT.db.get_task_action_emoji_mapping().keys()))}.")
+    else:
+        await interaction.followup.send(f"Successfully updated emoji '{emoji_id}' to '{emoji}' (\{emoji}).")
