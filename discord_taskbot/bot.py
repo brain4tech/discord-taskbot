@@ -44,33 +44,40 @@ async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
     message = await channel.fetch_message(payload.message_id)
     user = await BOT.fetch_user(payload.user_id)
 
+    # check if message is a task
+    task = BOT.db.get_task_to_message_id(message.id)
+    if not task:
+        return
+
     if not user.bot:
         await message.remove_reaction(payload.emoji, user)
     
     if user.bot:
         return
 
-    # TODO emojis do not match custom ones. Get emojis from db and compare them.
+    emoji_id = BOT.db.get_emoji_id_to_emoji(str(payload.emoji))
+    if not emoji_id:
+        return
 
-    match str(payload.emoji):
-        case '🔴':
+    match emoji_id:
+        case 'pending':
             print ("Set status to 'pending'.")
-        case '🟠':
+        case 'in_progress':
             print ("Set status to 'in progress'.")
-        case '🟣':
+        case 'pending_merge':
             print ("Set status to 'pending merge'.")
-        case '🖐🏼':
+        case 'self_assign':
             print (f"Task self-assigned by {user.name}")
-        case '📰':
+        case 'open_discussion':
             thread_name = message.clean_content.split("\n")[0]
             thread = await message.create_thread(name=thread_name, auto_archive_duration=None)
-            task = BOT.db.get_task_to_message_id(message.id)
-            if task:
-                try:
-                    BOT.db.update_task_thread_id(task.id, thread.id)
-                except CannotBeUpdated:
-                    pass
-        case '✅':
+            await thread.edit(name=f"Task {task.number} - {task.title}")
+            
+            try:
+                BOT.db.update_task_thread_id(task.id, thread.id)
+            except CannotBeUpdated:
+                pass
+        case 'done':
             print ("Marking task as done.")
 
 @tree.command()
