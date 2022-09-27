@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from .models import Project, Task, Env, Emoji, ORM_BASE
 from .cache import PersistenceCache
 from sqlalchemy.engine import Engine
-from .exceptions import ChannelAlreadyInUse, EmojiDoesNotExist
+from .exceptions import ChannelAlreadyInUse, EmojiDoesNotExist, CannotBeUpdated
 
 from discord_taskbot.utils.constants import TASK_EMOJI_IDS, DEFAULT_TASK_EMOJI_MAPPING
 
@@ -56,6 +56,31 @@ class PersistenceAPI:
 
             session.flush(); session.commit()
 
+        ### check if existing project ids are in env and load in cache
+
+        def is_two_tuple_int(x: Env) -> bool:
+            try:
+                int(x.name)
+                int(x.value)
+            except:
+                return False
+            
+            return True
+
+        with Session(self._engine) as session:
+            existing_projects: list[int] = list(map(lambda x : int(x[0]), session.query(Project.id).all()))
+            existing_envs: list[Env] = list(filter(is_two_tuple_int, session.query(Env).all()))
+            existing_envs: dict[int, int] = dict(map(lambda x : (int(x.name), int(x.value)), existing_envs))
+
+            for p in existing_projects:
+                if p not in existing_envs:
+                    self._cache.add(str(p), 0)
+                    session.add(Env(name=p, value=0))
+                else:
+                    self._cache.add(str(p), existing_envs[p])
+            
+            session.flush(); session.commit()
+
         ### create task action emojis
         existing_emojis = self.get_task_action_emoji_mapping()
 
@@ -83,7 +108,6 @@ class PersistenceAPI:
 
             session.flush(); session.commit()
 
-
     def add_project(self, tag: str, displayname: str, description: str, channel_id: int) -> None:
         """Create a new project."""
 
@@ -93,11 +117,19 @@ class PersistenceAPI:
             raise ChannelAlreadyInUse("This channel is already in use for another project.")
 
         with Session(self._engine) as session:
+            
+            # add project
             p = Project(tag=tag, display_name=displayname, description=description, channel_id=channel_id)
             p.id = int(self._cache.get("PROJECT_ID_COUNT")) + 1
             session.query(Env).filter(Env.name == "PROJECT_ID_COUNT").first().value = str(p.id)
+            self._cache.update("PROJECT_ID_COUNT", str(p.id))
+            self._cache.add(str(p.id), "0")
+
+            # add projectid to env for task counting
+            e = Env(name=p.id, value=0)
             
             session.add(p)
+            session.add(e)
             session.flush()
 
             session.commit()
@@ -118,12 +150,59 @@ class PersistenceAPI:
             
             session.flush(); session.commit()
 
-    def add_task(self, projectid, name: str, description: str) -> None:
+    def add_task(self, projectid, name: str, description: str) -> int:
         """Create a new task for a project."""
 
-    def update_task(self, id: int, name: str = "", description: str = "", status: str = "", assigned_to: int = "", thread_id: int = "") -> None:
+        name = str(name).strip()
+        description = str(description).strip()
+
+        t = Task(related_project=projectid, title=name, description=description, message_id=-1)
+
+        with Session(self._engine) as session:
+
+            # set task number and update values
+            t.number = int(self._cache.get(str(projectid))) + 1
+            session.query(Env).filter(Env.name == projectid).first().value = str(t.number)
+            self._cache.update(str(projectid), t.number)
+
+            session.add(t)
+            session.flush(); session.commit()
+        
+            return t.id
+
+    def update_task(self, id: int, name: str = "", description: str = "", status: str = "", assigned_to: int = "") -> None:
         """Update a task."""
+
+    def update_task_message_id(self, task_id: int, message_id: int) -> None:
+        """Update a task's message id."""
+
+        with Session(self._engine) as session:
+            t: Task = session.query(Task).filter(Task.id == task_id).first()
+
+            if t.message_id != -1:
+                raise CannotBeUpdated(f"Message id of {task_id} cannot be updated because it already has a valid value.")
+            
+            t.message_id = message_id
+            session.flush(); session.commit()
     
+    def update_task_thread_id(self, task_id: int, thread_id: int) -> None:
+        """Update a task's thread id."""
+
+        with Session(self._engine) as session:
+            t: Task = session.query(Task).filter(Task.id == task_id).first()
+
+            if t.thread_id != -1:
+                raise CannotBeUpdated(f"Thread id of {task_id} cannot be updated because it already has a valid value.")
+            
+            t.thread_id = thread_id
+            session.flush(); session.commit()
+    
+    def get_number_to_task(self, task_id: int) -> int | None:
+        """Get a task number to a given task id. This is independent from the project as each task has a unique id."""
+        with Session(self._engine) as session:
+            p: Task = session.query(Task).filter(Task.id == task_id).first()
+            return p.number
+
     def get_project_to_channel(self, channel_id: int) -> Project | None:
         """Get a project to a given channel. Returns the project or None if none found."""
         with Session(self._engine) as session:
