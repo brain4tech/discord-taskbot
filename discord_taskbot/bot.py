@@ -8,8 +8,9 @@ import discord, asyncio
 import discord_taskbot.components.models as models
 from discord_taskbot.components.persistence import PersistenceAPI
 from discord_taskbot.components.exceptions import DiscordTBException
+from discord_taskbot.components.client import TaskBot
 
-from discord_taskbot.utils import TaskBot, modals, functions
+from discord_taskbot.utils import modals, functions
 from discord_taskbot.utils import INTENTS
 
 from sqlalchemy.exc import IntegrityError
@@ -77,13 +78,23 @@ async def ping(interaction: discord.Interaction):
 @tree.command(name="newtask")
 async def new_task(interaction: discord.Interaction):
     """Create a new task."""
-    await interaction.response.send_modal(modals.NewTaskModal())
+
+    async def modal_func(interaction: discord.Interaction, title: str, description: str):
+        await interaction.response.defer()
+        await BOT.send_new_task(interaction.channel, title, description)
+
+    modal = BOT.generate_create_task_modal(project="PROJECTNAME HERE!", function=modal_func)
+    await interaction.response.send_modal(modal())
 
 @tree.command(name="newtaska")
 async def new_task_arguments(interaction: discord.Interaction, title: str, description: str):
     """Create a new task without a modal window."""
 
-    await functions.send_new_task(interaction.channel, title, description)
+    await interaction.response.defer()
+    await BOT.send_new_task(interaction.channel, title, description)
+    await interaction.followup.send(f"Task created successfully.")
+    await asyncio.sleep(1)
+    await interaction.delete_original_response()
 
 @tree.command(name="newproject")
 async def new_project(interaction: discord.Interaction, id: str, displayname: str, description: str) -> None:
