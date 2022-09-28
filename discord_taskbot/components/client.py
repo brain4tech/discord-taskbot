@@ -5,6 +5,8 @@ Custom subclass of discord.Client.
 import discord
 from discord import app_commands
 from typing import Any
+
+from discord_taskbot.components.models import Emoji
 from .persistence import PersistenceAPI
 from discord import ui
 from discord_taskbot.utils.constants import DEFAULT_TASK_EMOJI_MAPPING
@@ -57,12 +59,24 @@ class TaskBot(discord.Client):
         
         return EditProjectModal
 
-    def generate_edit_task_modal(self, title: str, description: str, status: str, assigned_to: str, function) -> ui.Modal:
-        class EditTaskModal(ui.Modal, title=f"Edit Project '{title}'"):
+    def generate_edit_task_modal(self, title: str, description: str, status: str, assigned_to: discord.Member, function, users: list[discord.Member], emojis: list[Emoji]) -> ui.Modal:
+        class EditTaskModal(ui.Modal, title=f"Edit Task '{title}'"):
             project_displayname = ui.TextInput(label="Title", placeholder=title, style=discord.TextStyle.short, max_length=150, min_length=1, required=False)
             project_description = ui.TextInput(label="Description", placeholder=description, style=discord.TextStyle.long, max_length=1000, required=False)
 
-            # TODO missing UI elements
+            """
+            project_status_pending = ui.Button(style=discord.ButtonStyle.green, label="Pending")
+            project_status_progress = ui.Button(label="In Progress")
+            project_status_merge = ui.Button(label="Pending Merge")
+            project_status_done = ui.Button(label="Done")
+
+            match status:
+                case 'pending': project_status_pending.disabled = True
+                case 'in_progress': project_status_progress.disabled = True
+                case 'pending_merge': project_status_merge.disabled = True
+                case 'done': project_status_done.disabled = True"""
+
+            # project_assigned_to = ui.Select(placeholder=assigned_to.display_name if assigned_to else None, options=list(map(lambda u : discord.SelectOption(label=u.display_name, value=u.id), users)))
 
             async def on_submit(self, interaction: discord.Interaction) -> None:
                 await function(interaction, self.project_displayname, self.project_description)
