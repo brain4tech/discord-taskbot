@@ -111,6 +111,8 @@ async def new_task(interaction: discord.Interaction, title: str, description: st
     
     message = await BOT.send_new_task(interaction.channel, BOT.db.get_number_to_task(task_id), title, description)
     BOT.db.update_task_message_id(task_id, message.id)
+    await BOT.update_task_status(task_id, 'pending')
+
     await interaction.followup.send(f"Task created successfully.")
     await asyncio.sleep(1)
     await interaction.delete_original_response()
@@ -131,6 +133,7 @@ async def new_task_modal(interaction: discord.Interaction):
         
         message = await BOT.send_new_task(interaction.channel, BOT.db.get_number_to_task(task_id), title, description)
         BOT.db.update_task_message_id(task_id, message.id)
+        await BOT.update_task_status(task_id, 'pending')
         await interaction.edit_original_response(content=f"Task created successfully.")
         await asyncio.sleep(1)
         await interaction.delete_original_response()
@@ -180,7 +183,7 @@ async def edit_task(interaction: discord.Interaction):
     await interaction.response.send_modal(modal())
 
 @tree.command(name="status")
-async def set_task_status(interaction: discord.Interaction, status: str = None) -> None:
+async def set_task_status(interaction: discord.Interaction, status: str) -> None:
     """Update a task's status."""
 
     await interaction.response.defer()
@@ -193,21 +196,39 @@ async def set_task_status(interaction: discord.Interaction, status: str = None) 
         await interaction.delete_original_response()
         return
 
-    if status:
-        status = str(status).strip()
+    status = str(status).strip()
 
-        if status not in TASK_STATUS_MAPPING:
-            await interaction.followup.send(f"Invalid status id. You can only choose from {' | '.join(list(TASK_STATUS_MAPPING.keys()))}")
-            return
+    if status not in TASK_STATUS_MAPPING:
+        await interaction.followup.send(f"Invalid status id. You can only choose from {' | '.join(list(TASK_STATUS_MAPPING.keys()))}")
+        return
 
-        await BOT.update_task_status(t.id, status)
-        await interaction.followup.send(f"Updated status to {TASK_STATUS_MAPPING[status]}.")
+    await BOT.update_task_status(t.id, status)
+    await interaction.followup.send(f"Updated status to {TASK_STATUS_MAPPING[status]}.")
+
+@tree.command(name="assign")
+async def assign_task(interaction: discord.Interaction, person: str = None) -> None:
+    """Update a task's developer."""
+
+    await interaction.response.defer()
+
+    # check if command is send in a task thread
+    t = BOT.db.get_task_to_thread_id(interaction.channel_id)
+    if not t:
+        await interaction.followup.send("Failure. Tasks can only be edited from their discussion threads.")
+        await asyncio.sleep(3)
+        await interaction.delete_original_response()
         return
     
-    # use buttons
-    # TODO use buttons to update task status
-    print ("buttons")
-    await interaction.followup.send(f"Updated status.")
+    print(person, type(person))
+    # None <class 'NoneType'>
+    # hi <class 'str'>
+    # <@438711786225795072> <class 'str'>
+
+    # if None: self assign
+    # if string without a valid mention: reset
+    # if valid mention: to mention
+
+    print ("assignment")
 
 @tree.command(name="newproject")
 async def new_project(interaction: discord.Interaction, id: str, displayname: str, description: str) -> None:
