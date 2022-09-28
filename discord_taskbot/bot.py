@@ -142,6 +142,42 @@ async def new_task_modal(interaction: discord.Interaction):
     modal = BOT.generate_create_task_modal(project=project.display_name, function=modal_func)
     await interaction.response.send_modal(modal())
 
+@tree.command(name="edittask")
+async def edit_task(interaction: discord.Interaction):
+    """Edit a task's title and description with a modal."""
+
+    # check if command is send in a task thread
+    t = BOT.db.get_task_to_thread_id(interaction.channel_id)
+    if not t:
+        await interaction.followup.send("Failure. Tasks can only be edited from their discussion threads.")
+        await asyncio.sleep(3)
+        await interaction.delete_original_response()
+        return
+    
+    async def modal_func(interaction: discord.Interaction, new_title: str, new_description: str) -> None:
+        await interaction.response.defer()
+
+        try:
+            BOT.db.update_task(task_id=t.id, name=new_title, description=new_description)
+        except:
+            await interaction.followup.send(f"Something went wrong while updating task {t.number}.")
+        else:
+            await interaction.followup.send(f"Successfully updated task {t.number}. ")
+            if str(new_title).strip() != "":
+                c = await BOT.fetch_channel(interaction.channel.id)
+                await c.edit(name=f"Task {t.number} - {new_title}")
+
+    t_assigned_user = None
+    if t.assigned_to:
+        t_assigned_user = await BOT.get_user(t.assigned_to)
+    
+    emoji_dict = {e.id: e.emoji for e in BOT.db.get_emojis()}
+
+    all_members = list(BOT.get_all_members())
+        
+    modal = BOT.generate_edit_task_modal(t.title, t.description, t.status, t_assigned_user, modal_func, all_members, emoji_dict)
+    await interaction.response.send_modal(modal())
+
 @tree.command(name="newproject")
 async def new_project(interaction: discord.Interaction, id: str, displayname: str, description: str) -> None:
     """Assign a new project to this channel."""
