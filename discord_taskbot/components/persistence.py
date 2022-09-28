@@ -2,6 +2,7 @@
 Database component.
 """
 
+from tkinter import SEL_FIRST
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 from .models import Project, Task, Env, Emoji, ORM_BASE
@@ -171,8 +172,30 @@ class PersistenceAPI:
         
             return t.id
 
-    def update_task(self, id: int, name: str = "", description: str = "", status: str = "", assigned_to: int = "") -> None:
+    def update_task(self, task_id: int, name: str = "", description: str = "", status: str = "", assigned_to: int = "") -> None:
         """Update a task."""
+
+        name = str(name).strip()
+        description = str(description).strip()
+        status = str(status).strip()
+
+        with Session(self._engine) as session:
+
+            t: Task = session.get(Task, task_id)
+
+            if name:
+                t.title = name
+            
+            if description:
+                t.description = description
+            
+            if status and status in DEFAULT_TASK_EMOJI_MAPPING:
+                t.status = status
+            
+            if assigned_to:
+                t.assigned_to = int(assigned_to)
+
+            session.flush(); session.commit()
 
     def update_task_message_id(self, task_id: int, message_id: int) -> None:
         """Update a task's message id."""
@@ -207,6 +230,12 @@ class PersistenceAPI:
             t: Task = session.query(Task).filter(Task.id == task_id).first()
             return t.number if t else None
     
+    def get_task_to_thread_id(self, thread_id: int) -> Task | None:
+        """Get a task through a thread id."""
+        with Session(self._engine) as session:
+            t: Task = session.query(Task).filter(Task.thread_id == thread_id).first()
+            return copy.copy(t) if t else None
+    
     def get_task_to_message_id(self, message_id: int) -> Task | None:
         """Get a task through a message id."""
         with Session(self._engine) as session:
@@ -237,6 +266,12 @@ class PersistenceAPI:
         with Session(self._engine) as session:
             e: Emoji = session.query(Emoji).filter(Emoji.emoji == emoji).first()
             return e.id if e else None
+
+    def get_emojis(self) -> list[Emoji]:
+        """Get all emojis."""
+        with Session(self._engine) as session:
+            e: Emoji = session.query(Emoji).all()
+            return e
 
     def update_task_action_emoji(self, id: str, emoji: str) -> None:
         """Update a task action emoji."""
