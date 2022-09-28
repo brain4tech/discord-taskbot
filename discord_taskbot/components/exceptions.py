@@ -16,3 +16,6 @@ class EmojiDoesNotExist(DiscordTBException):
 
 class CannotBeUpdated(DiscordTBException):
     """Exception thrown when a field can be updated only once."""
+
+class TaskDoesNotExist(DiscordTBException):
+    """Exception thrown when a task does not exist."""
