@@ -8,10 +8,10 @@ from sqlalchemy.orm import Session
 from .models import Project, Task, Env, Emoji, ORM_BASE
 from .cache import PersistenceCache
 from sqlalchemy.engine import Engine
-from .exceptions import ChannelAlreadyInUse, EmojiDoesNotExist, CannotBeUpdated
+from .exceptions import ChannelAlreadyInUse, EmojiDoesNotExist, CannotBeUpdated, TaskDoesNotExist
 import copy
 
-from discord_taskbot.utils.constants import TASK_EMOJI_IDS, DEFAULT_TASK_EMOJI_MAPPING
+from discord_taskbot.utils.constants import TASK_EMOJI_IDS, DEFAULT_TASK_EMOJI_MAPPING, TASK_STATUS_IDS
 
 __all__ = ['PersistenceAPI']
 
@@ -182,6 +182,8 @@ class PersistenceAPI:
         with Session(self._engine) as session:
 
             t: Task = session.get(Task, task_id)
+            if not t:
+                raise TaskDoesNotExist(f"Task with id '{task_id}' does not exist.")
 
             if name:
                 t.title = name
@@ -189,7 +191,7 @@ class PersistenceAPI:
             if description:
                 t.description = description
             
-            if status and status in DEFAULT_TASK_EMOJI_MAPPING:
+            if status and status in TASK_STATUS_IDS:
                 t.status = status
             
             if assigned_to:
@@ -241,12 +243,24 @@ class PersistenceAPI:
         with Session(self._engine) as session:
             t: Task = session.query(Task).filter(Task.message_id == message_id).first()
             return copy.copy(t) if t else None
+    
+    def get_task_to_task_id(self, task_id: int) -> Task | None:
+        """Get a task through a task id."""
+        with Session(self._engine) as session:
+            t: Task = session.query(Task).filter(Task.id == task_id).first()
+            return copy.copy(t) if t else None
 
     def get_project_to_channel(self, channel_id: int) -> Project | None:
         """Get a project to a given channel. Returns the project or None if none found."""
         with Session(self._engine) as session:
             p: Project = session.query(Project).filter(Project.channel_id == channel_id).first()
             return p
+    
+    def get_project_to_id(self, project_id: int) -> Project | None:
+        """Get a task through a task id."""
+        with Session(self._engine) as session:
+            p: Task = session.query(Project).filter(Project.id == project_id).first()
+            return copy.copy(p) if p else None
     
     def get_assigned_project_channels(self) -> list[int]:
         """Get all assigned project channel ids."""
