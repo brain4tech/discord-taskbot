@@ -5,11 +5,12 @@ Custom subclass of discord.Client.
 import discord
 from discord import app_commands
 from typing import Any
+from discord_taskbot.components.exceptions import DiscordTBException
 
 from discord_taskbot.components.models import Emoji
 from .persistence import PersistenceAPI
 from discord import ui
-from discord_taskbot.utils.constants import DEFAULT_TASK_EMOJI_MAPPING
+from discord_taskbot.utils.constants import DEFAULT_TASK_EMOJI_MAPPING, TASK_STATUS_MAPPING
 
 class TaskBot(discord.Client):
     def __init__(self, *, intents: discord.Intents, **options: Any) -> None:
@@ -82,3 +83,45 @@ class TaskBot(discord.Client):
                 await function(interaction, self.project_displayname, self.project_description)
         
         return EditTaskModal
+    
+    async def update_task_status(self, task_id, status_id) -> None:
+        """Update a task's status and update the message accordingly."""
+
+        if status_id not in TASK_STATUS_MAPPING:
+            return
+
+        try:
+            self.db.update_task(task_id, status=status_id)
+        except DiscordTBException:
+            return
+        
+        t = self.db.get_task_to_task_id(task_id)
+        if not t:
+            return
+        
+        c = self.db.get_project_to_id(t.related_project)
+        c: discord.TextChannel = await self.fetch_channel(c.channel_id)
+        
+        m = await c.fetch_message(t.message_id)
+        await m.edit(content=f"**Task #{t.number} ({TASK_STATUS_MAPPING[status_id]}):** {t.title}\n{t.description}")
+
+        if t.thread_id == -1:
+            return
+
+        thread = await self.fetch_channel(t.thread_id)
+        await thread.edit(name=f"Task {t.number} - {t.title} ({TASK_STATUS_MAPPING[status_id]})")
+        
+        await self.set_thread_read_only(t.id, status_id == 'done')
+    
+    async def set_thread_read_only(self, task_id: int, read_only: bool = False) -> None:
+        """Lock a thread for further interaction."""
+
+        t = self.db.get_task_to_task_id(task_id)
+        if not t:
+            return
+
+        if t.thread_id == -1:
+            return
+
+        thread = await self.fetch_channel(t.thread_id)
+        await thread.edit(locked=read_only)        
