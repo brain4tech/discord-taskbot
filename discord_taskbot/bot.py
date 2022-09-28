@@ -9,6 +9,7 @@ import discord_taskbot.components.models as models
 from discord_taskbot.components.persistence import PersistenceAPI
 from discord_taskbot.components.exceptions import DiscordTBException, CannotBeUpdated
 from discord_taskbot.components.client import TaskBot
+from discord_taskbot.utils.constants import TASK_STATUS_IDS, TASK_STATUS_MAPPING
 
 from discord_taskbot.utils import modals, functions
 from discord_taskbot.utils import INTENTS
@@ -61,11 +62,11 @@ async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
 
     match emoji_id:
         case 'pending':
-            print ("Set status to 'pending'.")
+            await BOT.update_task_status(task.id, emoji_id)
         case 'in_progress':
-            print ("Set status to 'in progress'.")
+            await BOT.update_task_status(task.id, emoji_id)
         case 'pending_merge':
-            print ("Set status to 'pending merge'.")
+            await BOT.update_task_status(task.id, emoji_id)
         case 'self_assign':
             print (f"Task self-assigned by {user.name}")
         case 'open_discussion':
@@ -78,7 +79,7 @@ async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
             except CannotBeUpdated:
                 pass
         case 'done':
-            print ("Marking task as done.")
+            await BOT.update_task_status(task.id, emoji_id)
 
 @tree.command()
 async def ping(interaction: discord.Interaction):
@@ -177,6 +178,36 @@ async def edit_task(interaction: discord.Interaction):
         
     modal = BOT.generate_edit_task_modal(t.title, t.description, t.status, t_assigned_user, modal_func, all_members, emoji_dict)
     await interaction.response.send_modal(modal())
+
+@tree.command(name="status")
+async def set_task_status(interaction: discord.Interaction, status: str = None) -> None:
+    """Update a task's status."""
+
+    await interaction.response.defer()
+
+    # check if command is send in a task thread
+    t = BOT.db.get_task_to_thread_id(interaction.channel_id)
+    if not t:
+        await interaction.followup.send("Failure. Tasks can only be edited from their discussion threads.")
+        await asyncio.sleep(3)
+        await interaction.delete_original_response()
+        return
+
+    if status:
+        status = str(status).strip()
+
+        if status not in TASK_STATUS_MAPPING:
+            await interaction.followup.send(f"Invalid status id. You can only choose from {' | '.join(list(TASK_STATUS_MAPPING.keys()))}")
+            return
+
+        await BOT.update_task_status(t.id, status)
+        await interaction.followup.send(f"Updated status to {TASK_STATUS_MAPPING[status]}.")
+        return
+    
+    # use buttons
+    # TODO use buttons to update task status
+    print ("buttons")
+    await interaction.followup.send(f"Updated status.")
 
 @tree.command(name="newproject")
 async def new_project(interaction: discord.Interaction, id: str, displayname: str, description: str) -> None:
