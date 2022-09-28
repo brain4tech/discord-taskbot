@@ -25,3 +25,20 @@ TASK_EMOJI_IDS = [
 ]
 
 DEFAULT_TASK_EMOJI_MAPPING = dict(zip(TASK_EMOJI_IDS, DEFAULT_TASK_EMOJIS))
+
+
+TASK_STATUS_IDS = [
+    'pending',
+    'in_progress',
+    'pending_merge',
+    'done',
+]
+
+TASK_STATUS_NAMES = [
+    "Pending",
+    "In Progress",
+    "Pending Merge",
+    "Done"
+]
+
+TASK_STATUS_MAPPING = dict(zip(TASK_STATUS_IDS, TASK_STATUS_NAMES))
