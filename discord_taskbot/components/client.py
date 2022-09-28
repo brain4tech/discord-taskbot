@@ -124,4 +124,4 @@ class TaskBot(discord.Client):
             return
 
         thread = await self.fetch_channel(t.thread_id)
-        await thread.edit(locked=read_only)        
+        await thread.edit(archived=read_only, locked=read_only)        
