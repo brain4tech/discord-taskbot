@@ -5,13 +5,10 @@ The actual discord bot.
 import traceback
 import discord, asyncio
 
-import discord_taskbot.components.models as models
-from discord_taskbot.components.persistence import PersistenceAPI
 from discord_taskbot.components.exceptions import DiscordTBException, CannotBeUpdated
 from discord_taskbot.components.client import TaskBot
 from discord_taskbot.utils.constants import TASK_STATUS_IDS, TASK_STATUS_MAPPING
 
-from discord_taskbot.utils import modals, functions
 from discord_taskbot.utils import INTENTS
 
 from sqlalchemy.exc import IntegrityError
@@ -68,9 +65,12 @@ async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
         case 'pending_merge':
             await BOT.update_task_status(task.id, emoji_id)
         case 'self_assign':
-            BOT.db.update_task(task.id, assigned_to=user.id)
+            await BOT.update_task(task.id, assigned_to=user.id)
+            
+            # exclude feature of automatic thread creation on self-assignments
+            """
             if task.thread_id == -1:
-                thread = await message.create_thread(name=f"Task {task.number} - {task.title}", auto_archive_duration=None)
+                thread = await message.create_thread(name=BOT.generate_task_thread_title(task), auto_archive_duration=None)
                 try:
                     BOT.db.update_task_thread_id(task.id, thread.id)
                 except CannotBeUpdated:
@@ -79,9 +79,9 @@ async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
                 thread = BOT.fetch_channel(task.thread_id)
             
             await thread.send(f"Task self-assigned by <@{user.id}>.")
-            return
+            """
         case 'open_discussion':
-            thread = await message.create_thread(name=f"Task {task.number} - {task.title}", auto_archive_duration=None)
+            thread = await message.create_thread(name=BOT.generate_task_thread_title(task), auto_archive_duration=None)
             try:
                 BOT.db.update_task_thread_id(task.id, thread.id)
             except CannotBeUpdated:
@@ -117,9 +117,9 @@ async def new_task(interaction: discord.Interaction, title: str, description: st
         await interaction.followup.send("Something went wrong while creating a new task.")
         return
     
-    message = await BOT.send_new_task(interaction.channel, BOT.db.get_number_to_task(task_id), title, description)
-    BOT.db.update_task_message_id(task_id, message.id)
     await BOT.update_task_status(task_id, 'pending')
+    message: discord.Message = await BOT.send_new_task(interaction.channel, BOT.db.get_task_to_task_id(task_id))
+    BOT.db.update_task_message_id(task_id, message.id)
 
     await interaction.followup.send(f"Task created successfully.")
     await asyncio.sleep(1)
@@ -139,9 +139,9 @@ async def new_task_modal(interaction: discord.Interaction):
             await interaction.followup.send("Something went wrong while creating a new task.")
             return
         
-        message = await BOT.send_new_task(interaction.channel, BOT.db.get_number_to_task(task_id), title, description)
-        BOT.db.update_task_message_id(task_id, message.id)
         await BOT.update_task_status(task_id, 'pending')
+        message: discord.Message = await BOT.send_new_task(interaction.channel, BOT.db.get_task_to_task_id(task_id))
+        BOT.db.update_task_message_id(task_id, message.id)
         await interaction.edit_original_response(content=f"Task created successfully.")
         await asyncio.sleep(1)
         await interaction.delete_original_response()
@@ -161,7 +161,7 @@ async def edit_task(interaction: discord.Interaction):
     # check if command is send in a task thread
     t = BOT.db.get_task_to_thread_id(interaction.channel_id)
     if not t:
-        await interaction.followup.send("Failure. Tasks can only be edited from their discussion threads.")
+        await interaction.response.send_message("Failure. Tasks can only be edited from their discussion threads.")
         await asyncio.sleep(3)
         await interaction.delete_original_response()
         return
@@ -170,18 +170,18 @@ async def edit_task(interaction: discord.Interaction):
         await interaction.response.defer()
 
         try:
-            BOT.db.update_task(task_id=t.id, name=new_title, description=new_description)
+            await BOT.update_task(task_id=t.id, name=new_title, description=new_description)
         except:
             await interaction.followup.send(f"Something went wrong while updating task {t.number}.")
         else:
             await interaction.followup.send(f"Successfully updated task {t.number}. ")
             if str(new_title).strip() != "":
                 c = await BOT.fetch_channel(interaction.channel.id)
-                await c.edit(name=f"Task {t.number} - {new_title}")
+                await c.edit(name=BOT.generate_task_thread_title(t))
 
     t_assigned_user = None
-    if t.assigned_to:
-        t_assigned_user = await BOT.get_user(t.assigned_to)
+    if t.assigned_to and t.assigned_to != -1:
+        t_assigned_user = await BOT.fetch_user(t.assigned_to)
     
     emoji_dict = {e.id: e.emoji for e in BOT.db.get_emojis()}
 
@@ -229,12 +229,12 @@ async def assign_task(interaction: discord.Interaction, person: str = None) -> N
 
     if not person:
         # self assign
-        BOT.db.update_task(t.id, assigned_to=interaction.user.id)
+        await BOT.update_task(t.id, assigned_to=interaction.user.id)
         await interaction.followup.send(f"Task self-assigned by <@{interaction.user.id}>.")
         return
     
     if person == "reset":
-        BOT.db.update_task(t.id, assigned_to=-1)
+        await BOT.update_task(t.id, assigned_to=-1)
         await interaction.followup.send("Reset assigned person.")
         return
 
@@ -245,9 +245,11 @@ async def assign_task(interaction: discord.Interaction, person: str = None) -> N
             await interaction.followup.send("Passed user does not exist.")
             return
 
-        BOT.db.update_task(t.id, assigned_to=u.id)
+        await BOT.update_task(t.id, assigned_to=u.id)
         await interaction.followup.send(f"Task assigned to <@{u.id}> by <@{interaction.user.id}>.")
         return
+    
+    await interaction.followup.send(f"Invalid assignment parameter.")
 
 @tree.command(name="newproject")
 async def new_project(interaction: discord.Interaction, id: str, displayname: str, description: str) -> None:
