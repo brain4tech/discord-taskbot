@@ -68,12 +68,20 @@ async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
         case 'pending_merge':
             await BOT.update_task_status(task.id, emoji_id)
         case 'self_assign':
-            print (f"Task self-assigned by {user.name}")
-        case 'open_discussion':
-            thread_name = message.clean_content.split("\n")[0]
-            thread = await message.create_thread(name=thread_name, auto_archive_duration=None)
-            await thread.edit(name=f"Task {task.number} - {task.title}")
+            BOT.db.update_task(task.id, assigned_to=user.id)
+            if task.thread_id == -1:
+                thread = await message.create_thread(name=f"Task {task.number} - {task.title}", auto_archive_duration=None)
+                try:
+                    BOT.db.update_task_thread_id(task.id, thread.id)
+                except CannotBeUpdated:
+                    pass
+            else:
+                thread = BOT.fetch_channel(task.thread_id)
             
+            await thread.send(f"Task self-assigned by <@{user.id}>.")
+            return
+        case 'open_discussion':
+            thread = await message.create_thread(name=f"Task {task.number} - {task.title}", auto_archive_duration=None)
             try:
                 BOT.db.update_task_thread_id(task.id, thread.id)
             except CannotBeUpdated:
@@ -218,17 +226,28 @@ async def assign_task(interaction: discord.Interaction, person: str = None) -> N
         await asyncio.sleep(3)
         await interaction.delete_original_response()
         return
+
+    if not person:
+        # self assign
+        BOT.db.update_task(t.id, assigned_to=interaction.user.id)
+        await interaction.followup.send(f"Task self-assigned by <@{interaction.user.id}>.")
+        return
     
-    print(person, type(person))
-    # None <class 'NoneType'>
-    # hi <class 'str'>
-    # <@438711786225795072> <class 'str'>
+    if person == "reset":
+        BOT.db.update_task(t.id, assigned_to=-1)
+        await interaction.followup.send("Reset assigned person.")
+        return
 
-    # if None: self assign
-    # if string without a valid mention: reset
-    # if valid mention: to mention
+    if person.startswith('<@') and person.endswith('>'):
+        try:
+            u = await BOT.fetch_user(int(person[2:-1]))
+        except discord.NotFound:
+            await interaction.followup.send("Passed user does not exist.")
+            return
 
-    print ("assignment")
+        BOT.db.update_task(t.id, assigned_to=u.id)
+        await interaction.followup.send(f"Task assigned to <@{u.id}> by <@{interaction.user.id}>.")
+        return
 
 @tree.command(name="newproject")
 async def new_project(interaction: discord.Interaction, id: str, displayname: str, description: str) -> None:
