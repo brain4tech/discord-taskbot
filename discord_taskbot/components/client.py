@@ -5,9 +5,9 @@ Custom subclass of discord.Client.
 import discord
 from discord import app_commands
 from typing import Any
-from discord_taskbot.components.exceptions import DiscordTBException
+from discord_taskbot.components.exceptions import DiscordTBException, TaskDoesNotExist
 
-from discord_taskbot.components.models import Emoji
+from discord_taskbot.components.models import Emoji, Task
 from .persistence import PersistenceAPI
 from discord import ui
 from discord_taskbot.utils.constants import DEFAULT_TASK_EMOJI_MAPPING, TASK_STATUS_MAPPING
@@ -24,8 +24,8 @@ class TaskBot(discord.Client):
     async def setup_hook(self):
         await self.tree.sync()
     
-    async def send_new_task(self, channel: discord.TextChannel, number: int, title: str, description: str) -> discord.Message:
-        message: discord.Message = await channel.send(f"**Task #{number}:** {title}\n{description}")
+    async def send_new_task(self, channel: discord.TextChannel, task: Task) -> discord.Message:
+        message: discord.Message = await channel.send(self.generate_task_string(task))
 
         task_emojis = self.db.get_task_action_emoji_mapping()
 
@@ -101,17 +101,15 @@ class TaskBot(discord.Client):
         
         c = self.db.get_project_to_id(t.related_project)
         c: discord.TextChannel = await self.fetch_channel(c.channel_id)
-        
-        m = await c.fetch_message(t.message_id)
-        await m.edit(content=f"**Task #{t.number} ({TASK_STATUS_MAPPING[status_id]}):** {t.title}\n{t.description}")
 
-        if t.thread_id == -1:
-            return
+        if t.message_id != -1:
+            m = await c.fetch_message(t.message_id)
+            await m.edit(content=self.generate_task_string(t))
 
-        thread = await self.fetch_channel(t.thread_id)
-        await thread.edit(name=f"Task {t.number} - {t.title} ({TASK_STATUS_MAPPING[status_id]})")
-        
-        await self.set_thread_read_only(t.id, status_id == 'done')
+        if t.thread_id != -1:
+            thread = await self.fetch_channel(t.thread_id)
+            await thread.edit(name=self.generate_task_thread_title(t))
+            await self.set_thread_read_only(t.id, status_id == 'done')
     
     async def set_thread_read_only(self, task_id: int, read_only: bool = False) -> None:
         """Lock a thread for further interaction."""
@@ -125,3 +123,46 @@ class TaskBot(discord.Client):
 
         thread = await self.fetch_channel(t.thread_id)
         await thread.edit(archived=read_only, locked=read_only)        
+
+    def generate_task_string(self, task: Task) -> str:
+
+        number_formatting = f"[#{task.number}]"
+        title_formatting = f"**{task.title}**"
+
+        status_formatting = f"`{TASK_STATUS_MAPPING[task.status]}`" if task.status else ""
+        assign_formatting = f"> <@{task.assigned_to}>" if task.assigned_to and task.assigned_to != -1 else ""
+
+        description_formatting = f"{task.description}"
+
+        parts = [
+            number_formatting +((' '*3 + status_formatting) if status_formatting else '') + ' '*3 + title_formatting,
+            ('\n' + assign_formatting + '\n') if assign_formatting else '',
+            description_formatting,
+        ]
+
+        print (parts)
+
+        return '\n'.join(parts)
+    
+    def generate_task_thread_title(self, task: Task) -> str:
+        return f"[{task.number}{(', ' + TASK_STATUS_MAPPING[task.status]) if task.status else ''}] {task.title}"
+    
+    async def update_task(self, task_id: int, name: str = "", description: str = "", status: str = "", assigned_to: int = "") -> None:
+        """Update a task and perform some message changing."""
+
+        if not name and not description and not status and not assigned_to:
+            return
+
+        try:
+            self.db.update_task(task_id, name, description, status, assigned_to)
+        except TaskDoesNotExist:
+            return
+
+        t = self.db.get_task_to_task_id(task_id)
+        
+        c = self.db.get_project_to_id(t.related_project)
+        c: discord.TextChannel = await self.fetch_channel(c.channel_id)
+
+        if t.message_id != -1:
+            m = await c.fetch_message(t.message_id)
+            await m.edit(content=self.generate_task_string(t))
