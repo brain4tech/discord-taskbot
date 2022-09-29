@@ -2,10 +2,11 @@
 
 
 *Task management utility for small programming teams.*
-**README is in development. Documentation and decisions may change!**
 
+### About
+Status: **Alpha**. See [Development](#development) for more.
 
-### Features
+**Feature overview**
 - Create new projects and assign them to a text channel
 - Add new tasks with a title and a short description
 - Interact with the task through reactions:
@@ -18,16 +19,40 @@
 - Discord modals for nice task editing, overviews and user experience
 
 ### Getting Started
-> Coming soon.
-> 
-> `./build-docker.sh`
-> 
-> `docker run -v $(PWD)/.env:/data/.env discord_taskbot`
->
-> Or just `pip3 install .` and then `discord-taskbot run <envfile here>`. *discordtb* is an alias for *discord-taskbot*.
+
+Create your own discord bot through the developer portal (see the official [docs](https://discord.com/developers/docs/getting-started#creating-an-app) for more details), and copy the generated bot token. Rename .env.default to .env. Paste the copied token into the .env file behind TOKEN=.
+
+Add your bot to a discord server. The bot will need two scopes: bot and applications.command. The required permission id is 326417639488 (Send Messages, Create Public Threads, Send Messages in Threads, Manage Messages, Manage Threads, Embed Links, Attach Files, Read Message History and Add Reactions. Again, read the official docs for more information on how to add your bot to your server. You can change the bot's permissions in your server settings later in case you missed something.
+
+Next, choose a way of executing the bot and follow the steps respectively.
+
+#### PIP (normal execution)
+1. `pip3 install .`
+2. `discord-taskbot run <envfile here>`
+
+Instead of *discord-taskbot* you can also use the shorter alias *discordtb*.
+
+#### Docker (yet untested)
+1. `./build-docker.sh`
+2. `docker run -v $(PWD)/.env:/data/.env discord_taskbot`
+
+If you don't specify an environment variable named 'TOKEN' (which will be done automatically when you attach the .env file to your execution) the script will throw a NoToken exception.
 
 ### Documentation
 > Haha, nope.
+
+
+### Development
+*discord-taskbot* is in **alpha** development.
+
+This means you can use the bot and it should work, however longterm stability is not ensured yet. The codebase is in need of simplification and refactoring.
+
+Below you can find a basic ToDo-list on all things that need to be done:
+
+- [ ] Code refactoring
+- [ ] Global code documentaton
+- To be continued...
+
 
 ### Contributing
 **Feel free!** If you have ideas for improvements open a new issue per improvement. If you want to contribute some code do so by creating a merge request.
@@ -44,4 +69,4 @@
 > Additionally, a global bot would increase the complexity and require me to do more coding and testing (serve multiple discord servers, no messing up of multiple datastreams), which I'm currently not interested in. Also, no time.
 
 *Which licence does your code have?*
-> During pre-alpha development, the entire codebase is propietary. Any usage, replicating or commercializing is forbidden.
+> MIT.
