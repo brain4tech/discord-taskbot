@@ -68,5 +68,5 @@ Below you can find a basic ToDo-list on all things that need to be done:
 > 
 > Additionally, a global bot would increase the complexity and require me to do more coding and testing (serve multiple discord servers, no messing up of multiple datastreams), which I'm currently not interested in. Also, no time.
 
-*Which licence does your code have?*
+*Which license does your code have?*
 > MIT.
