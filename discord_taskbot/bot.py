@@ -26,14 +26,12 @@ async def on_ready():
 
 @BOT.event
 async def on_message(message: discord.Message):
-    channel_ids = BOT.db.get_assigned_project_channels()
-
     # if message is an interaction (app command, modal submission, ...), return
     if message.interaction:
         return
 
     # if message no interaction and channel is registered, delete message
-    if message.channel.id in channel_ids and message.author.id != BOT.user.id:
+    if BOT.db.is_channel_in_use(message.channel.id) and message.author.id != BOT.user.id:
         await message.delete()
 
 
