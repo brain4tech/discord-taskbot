@@ -13,3 +13,6 @@ data.db
 
 # stupid mac stuff
 .DS_STORE
+
+# ignore Jetbrains IDE settings
+.idea
