@@ -7,8 +7,10 @@ from sqlalchemy.orm import declarative_base
 
 ORM_BASE = declarative_base()
 
-__all__ = ['Project', 'Task', 'Env']
+__all__ = ['Project', 'Task', 'Value']
 
+
+# TODO add table constructors
 
 class Project(ORM_BASE):
     """Database table to store all projects."""
@@ -36,9 +38,9 @@ class Task(ORM_BASE):
     thread_id = Column(Integer, nullable=False, default=-1)
 
 
-class Env(ORM_BASE):
+class Value(ORM_BASE):
     """Database table to store bot states."""
-    __tablename__ = 'env'
+    __tablename__ = 'values'
 
     name = Column(String, primary_key=True)
     value = Column(String, nullable=False)
