@@ -282,18 +282,36 @@ class PersistenceAPI:
             p: Task = session.query(Project).filter(Project.id == project_id).first()
             return copy.copy(p) if p else None
 
-    def get_assigned_project_channels(self) -> list[int]:
-        """Get all assigned project channel ids."""
-
-        channels = set()
+    def is_channel_in_use(self, channel_id) -> bool:
+        """Check if passed channel id is already taken (== a project)."""
 
         with Session(self._engine) as session:
-            result = session.query(Project.channel_id).all()
+            p: Project = session.query(Project).filter(Project.channel_id == channel_id)
 
-            for r in result:
-                channels.add(r[0])
+        # the query returns either something or None, and bool(None) -> False
+        return bool(p)
 
-        return channels
+    def _generate_project_id(self) -> int:
+        """Calculates, stores and returns a new project id integer from existing counters."""
+
+        # retrieve counter from cache
+        id_count = int(self._cache.get("PROJECT_ID_COUNT"))
+
+        # increase counter
+        id_count += 1
+
+        # update value indatabase
+        with Session(self._engine) as session:
+            v: Value = session.query(Value).filter(Value.name == "PROJECT_ID_COUNT").first()
+            v.value = str(id_count)
+
+            session.commit()
+
+        # update value in cache if database storing was successful
+        self._cache.update("PROJECT_ID_COUNT", str(id_count))
+
+        # return generated id
+        return id_count
 
     def get_emoji_id_to_emoji(self, emoji: str) -> str | None:
         """Get the emoji id of an emoji."""
