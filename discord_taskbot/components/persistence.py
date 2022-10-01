@@ -125,29 +125,26 @@ class PersistenceAPI:
 
             session.commit()
 
-
-    def add_project(self, tag: str, displayname: str, description: str, channel_id: int) -> None:
+    def add_project(self, tag: str, displayname: str, description: str, channel_id: int) -> Project:
         """Create a new project."""
 
         # check if channel is already a project
-        channel_ids = self.get_assigned_project_channels()
-        if channel_id in channel_ids:
+        if self.is_channel_in_use(channel_id):
             raise ChannelAlreadyInUse("This channel is already in use for another project.")
 
         with Session(self._engine) as session:
             # add project
             p = Project(tag=tag, display_name=displayname, description=description, channel_id=channel_id)
-            p.id = int(self._cache.get("PROJECT_ID_COUNT")) + 1
-            session.query(Value).filter(Value.name == "PROJECT_ID_COUNT").first().value = str(p.id)
-            self._cache.update("PROJECT_ID_COUNT", str(p.id))
-            self._cache.add(str(p.id), "0")
-
-            # add project id to env for task counting
-            e = Value(name=p.id, value=0)
-
+            p.id = self._generate_project_id()
             session.add(p)
-            session.add(e)
+
+            # add project id to static values
+            v = Value(name=p.id, value=0)
+            session.add(v)
+
             session.commit()
+
+        return copy.copy(p)
 
     def update_project(self, tag: str, displayname: str = "", description: str = "") -> Project:
         """Update a project's display name and description."""
