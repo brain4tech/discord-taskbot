@@ -4,6 +4,8 @@ Database component.
 
 import copy
 
+from collections.abc import Iterable
+
 from sqlalchemy import create_engine
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session
@@ -11,7 +13,7 @@ from sqlalchemy.orm import Session
 from discord_taskbot.utils.constants import TASK_EMOJI_IDS, DEFAULT_TASK_EMOJI_MAPPING, TASK_STATUS_IDS
 from .cache import PersistenceCache
 from .exceptions import ChannelAlreadyInUse, EmojiDoesNotExist, CannotBeUpdated, TaskDoesNotExist
-from .models import Project, Task, Env, Emoji, ORM_BASE
+from .models import Project, Task, Value, Emoji, ORM_BASE
 
 __all__ = ['PersistenceAPI']
 
@@ -19,100 +21,110 @@ __all__ = ['PersistenceAPI']
 class PersistenceAPI:
 
     def __init__(self) -> None:
-        """Class that provides an api for accessing and modifying the persistance layer."""
+        """Class that provides an api for accessing and modifying the persistence layer."""
 
         self._engine: Engine
         self._cache: PersistenceCache = PersistenceCache()
 
+        self._engine = None
+
     def startup(self) -> None:
         """Create the database and do some startup things."""
-
-        print("Starting db.")
 
         ### create engine and tables
         self._engine = create_engine("sqlite:///data.db", echo=True)
         ORM_BASE.metadata.create_all(self._engine)
+        self._startup_create_runtime_vals()
+        self._startup_project_id_value()
+        self._startup_task_action_emojis()
 
-        ### create env variables
-        env_vars = [
-            Env(name="PROJECT_ID_COUNT", value="0")
+    def _startup_create_runtime_vals(self) -> None:
+        """Create and store runtime values in database and cache."""
+
+        # define static runtime values
+        values = [
+            Value(name="PROJECT_ID_COUNT", value="0")
         ]
-        env_dict = {k.name: k for k in env_vars}
+        val_dict = {k.name: k for k in values}
 
-        for v in env_dict.values():
+        for v in val_dict.values():
             self._cache.add(v.name, v.value)
 
         with Session(self._engine) as session:
-            existing_envs: list[Env] = session.query(Env).all()
+            db_vals: list[Value] = session.query(Value).all()
 
             # update existing env vars in cache
-            for var in list(filter(lambda x: x.name in env_dict, existing_envs)):
+            for var in list(filter(lambda x: x.name in val_dict, db_vals)):
                 self._cache.update(var.name, var.value)
 
-            # add non-existing env vars to db
-            env_dict_copy = env_dict.copy()
-            for var in existing_envs:
-                env_dict_copy.pop(var.name, None)
+            # remove all values that exist in db
+            for var in db_vals:
+                val_dict.pop(var.name, None)
 
-            for var in env_dict_copy.values():
+            # add non-existing env vars to db
+            for var in val_dict.values():
                 session.add(var)
 
-            session.flush();
             session.commit()
 
-        ### check if existing project ids are in env and load in cache
-
-        def is_two_tuple_int(x: Env) -> bool:
+    def _startup_project_id_value(self) -> None:
+        """Add project ids to Values table"""
+        def is_int_value(x: Value) -> bool:
+            """Small function to check if both name and value of a Value can be cast to an int."""
             try:
                 int(x.name)
                 int(x.value)
-            except:
+            except ValueError:
                 return False
 
             return True
 
         with Session(self._engine) as session:
-            existing_projects: list[int] = list(map(lambda x: int(x[0]), session.query(Project.id).all()))
-            existing_envs: list[Env] = list(filter(is_two_tuple_int, session.query(Env).all()))
-            existing_envs: dict[int, int] = dict(map(lambda x: (int(x.name), int(x.value)), existing_envs))
+            # get existing projects from database
+            existing_projects: Iterable[int] = map(lambda x: int(x[0]), session.query(Project.id).all())
+
+            # map all valid (see function above) values from database into a dict
+            existing_values: dict[int, int] = {int(v.name): int(v.value)
+                                               for v in filter(is_int_value, session.query(Value).all())}
 
             for p in existing_projects:
-                if p not in existing_envs:
+                if p not in existing_values:
                     self._cache.add(str(p), 0)
-                    session.add(Env(name=p, value=0))
+                    session.add(Value(name=p, value=0))
                 else:
-                    self._cache.add(str(p), existing_envs[p])
-
-            session.flush();
+                    self._cache.add(str(p), existing_values[p])
+            
             session.commit()
 
-        ### create task action emojis
+    def _startup_task_action_emojis(self) -> None:
+        """Update and ensure correct task action emoji order and values in database."""
         existing_emojis = self.get_task_action_emoji_mapping()
 
         # if query result and emoji_ids have equivalent ids, return
         if DEFAULT_TASK_EMOJI_MAPPING.keys() == existing_emojis.keys():
             return
 
-        # only keep those emojis which id's are valid
-        valid_existing_emoji_ids = list(filter(lambda x: x in TASK_EMOJI_IDS, existing_emojis.keys()))
+        # only keep those emojis with valid ids
+        valid_existing_emoji_ids = filter(lambda x: x in TASK_EMOJI_IDS, existing_emojis.keys())
 
-        # use in-db empjis for existing ones, use default emojis for new ones
-        new_emoji_mapping = DEFAULT_TASK_EMOJI_MAPPING.copy()
-        for e in valid_existing_emoji_ids:
-            new_emoji_mapping[e] = existing_emojis[e]
+        # use stored emojis for existing ids, use default emojis for new ids
+        emoji_mapping = DEFAULT_TASK_EMOJI_MAPPING.copy()
+        for e_id in valid_existing_emoji_ids:
+            emoji_mapping[e_id] = existing_emojis[e_id]
 
         position_count = 1
         with Session(self._engine) as session:
 
-            for e in existing_emojis:
-                session.delete(session.get(Emoji, e))
+            # delete all existing emojis in table
+            session.query(Emoji).delete()
 
-            for id, emoji in new_emoji_mapping.items():
-                session.add(Emoji(id=id, emoji=emoji, position=position_count))
+            # (re) add emojis while considering their order
+            for e_id, emoji in emoji_mapping.items():
+                session.add(Emoji(id=e_id, emoji=emoji, position=position_count))
                 position_count += 1
 
-            session.flush();
             session.commit()
+
 
     def add_project(self, tag: str, displayname: str, description: str, channel_id: int) -> None:
         """Create a new project."""
@@ -126,26 +138,24 @@ class PersistenceAPI:
             # add project
             p = Project(tag=tag, display_name=displayname, description=description, channel_id=channel_id)
             p.id = int(self._cache.get("PROJECT_ID_COUNT")) + 1
-            session.query(Env).filter(Env.name == "PROJECT_ID_COUNT").first().value = str(p.id)
+            session.query(Value).filter(Value.name == "PROJECT_ID_COUNT").first().value = str(p.id)
             self._cache.update("PROJECT_ID_COUNT", str(p.id))
             self._cache.add(str(p.id), "0")
 
-            # add projectid to env for task counting
-            e = Env(name=p.id, value=0)
+            # add project id to env for task counting
+            e = Value(name=p.id, value=0)
 
             session.add(p)
             session.add(e)
-            session.flush()
-
             session.commit()
 
-    def update_project(self, tag: str, displayname: str = "", description: str = "") -> None:
+    def update_project(self, tag: str, displayname: str = "", description: str = "") -> Project:
         """Update a project's display name and description."""
         displayname = str(displayname).strip()
         description = str(description).strip()
 
         with Session(self._engine) as session:
-            p: Project = session.query(Project).filter(Project.tag == tag).first()
+            p: Project = session.get(Project, tag)
 
             if displayname:
                 p.display_name = displayname
@@ -153,8 +163,9 @@ class PersistenceAPI:
             if description:
                 p.description = description
 
-            session.flush();
             session.commit()
+
+        return copy.copy(p)
 
     def add_task(self, projectid, name: str, description: str) -> int:
         """Create a new task for a project."""
@@ -167,11 +178,10 @@ class PersistenceAPI:
         with Session(self._engine) as session:
             # set task number and update values
             t.number = int(self._cache.get(str(projectid))) + 1
-            session.query(Env).filter(Env.name == projectid).first().value = str(t.number)
+            session.query(Value).filter(Value.name == projectid).first().value = str(t.number)
             self._cache.update(str(projectid), t.number)
 
             session.add(t)
-            session.flush();
             session.commit()
 
             return t.id
@@ -217,7 +227,7 @@ class PersistenceAPI:
                     f"Message id of {task_id} cannot be updated because it already has a valid value.")
 
             t.message_id = message_id
-            session.flush();
+            
             session.commit()
 
     def update_task_thread_id(self, task_id: int, thread_id: int) -> None:
@@ -233,7 +243,7 @@ class PersistenceAPI:
                 raise CannotBeUpdated(f"Thread id of {task_id} cannot be updated because it already has a valid value.")
 
             t.thread_id = thread_id
-            session.flush();
+            
             session.commit()
 
     def get_number_to_task(self, task_id: int) -> int | None:
@@ -306,7 +316,7 @@ class PersistenceAPI:
 
             e.emoji = emoji
 
-            session.flush();
+            
             session.commit()
 
     def get_task_action_emoji_mapping(self) -> dict[str, str]:
