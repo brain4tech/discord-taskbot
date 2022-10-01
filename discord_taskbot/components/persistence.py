@@ -177,7 +177,7 @@ class PersistenceAPI:
             return t.id
 
     def update_task(self, task_id: int, name: str = "", description: str = "", status: str = "",
-                    assigned_to: int = "") -> None:
+                    assigned_to: int = "") -> Task:
         """Update a task."""
 
         name = str(name).strip()
@@ -202,8 +202,9 @@ class PersistenceAPI:
             if assigned_to:
                 t.assigned_to = int(assigned_to)
 
-            session.flush();
             session.commit()
+
+        return copy.copy(t)
 
     def update_task_message_id(self, task_id: int, message_id: int) -> None:
         """Update a task's message id."""
