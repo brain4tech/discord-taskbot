@@ -14,10 +14,18 @@ from discord_taskbot.utils.constants import DEFAULT_TASK_EMOJI_MAPPING, TASK_STA
 
 class TaskBot(discord.Client):
     def __init__(self, *, intents: discord.Intents, **options: Any) -> None:
+        """
+        A subclass of discord.Client.
+        
+        Primarily to add custom application commands, but it also provides method for modal generation
+        and other higher-level methods for data manipulation.
+        
+        """
         super().__init__(intents=intents, **options)
 
         self.tree = app_commands.CommandTree(self)
 
+        # start and initialize the database
         self.db = PersistenceAPI()
         self.db.startup()
     
@@ -25,22 +33,28 @@ class TaskBot(discord.Client):
         await self.tree.sync()
     
     async def send_new_task(self, channel: discord.TextChannel, task: Task) -> discord.Message:
+        """Send a new task into the specified channel. Return the message if successfull."""
+
+        # TODO check if channel id is actually a project
         message: discord.Message = await channel.send(self.generate_task_string(task))
 
         task_emojis = self.db.get_task_action_emoji_mapping()
 
+        # add task actions to sent task; task actions are represented with reactions
         for id, emoji in task_emojis.items():
             try:
                 await message.add_reaction(emoji)
             except Exception as e:
+
                 # use default emoji in case of an exception
+                # the most possible exception is that the emoji stored in the database has been deleted on the server
                 print("ERROR! {e} Using fallback emoji from default list.")
                 await message.add_reaction(DEFAULT_TASK_EMOJI_MAPPING[id])
         
         return message
 
-    
     def generate_create_task_modal(self, project: str, function) -> ui.Modal:
+        """Generate a modal that creates a new task."""
         class CreateTaskModal(ui.Modal, title=f"Create new Task for '{project}'"):
             task_title = ui.TextInput(label="Title", style=discord.TextStyle.short, max_length=150, required=True, min_length=1)
             task_description = ui.TextInput(label="Description", style=discord.TextStyle.long, max_length=1000, min_length=1)
@@ -51,6 +65,7 @@ class TaskBot(discord.Client):
         return CreateTaskModal
 
     def generate_edit_project_modal(self, tag: str, displayname: str, description: str, function) -> ui.Modal:
+        """Generate a modal that edits a project's title and description."""
         class EditProjectModal(ui.Modal, title=f"Edit Project '{tag}'"):
             project_displayname = ui.TextInput(label="Display Name", placeholder=displayname, style=discord.TextStyle.short, max_length=50, min_length=1, required=False)
             project_description = ui.TextInput(label="Description", placeholder=description, style=discord.TextStyle.long, max_length=800, required=False)
@@ -60,24 +75,11 @@ class TaskBot(discord.Client):
         
         return EditProjectModal
 
-    def generate_edit_task_modal(self, title: str, description: str, status: str, assigned_to: discord.Member, function, users: list[discord.Member], emojis: list[Emoji]) -> ui.Modal:
+    def generate_edit_task_modal(self, title: str, description: str, function) -> ui.Modal:
+        """Generate a modal that edits a task's title and description."""
         class EditTaskModal(ui.Modal, title=f"Edit Task '{title}'"):
             project_displayname = ui.TextInput(label="Title", placeholder=title, style=discord.TextStyle.short, max_length=150, min_length=1, required=False)
             project_description = ui.TextInput(label="Description", placeholder=description, style=discord.TextStyle.long, max_length=1000, required=False)
-
-            """
-            project_status_pending = ui.Button(style=discord.ButtonStyle.green, label="Pending")
-            project_status_progress = ui.Button(label="In Progress")
-            project_status_merge = ui.Button(label="Pending Merge")
-            project_status_done = ui.Button(label="Done")
-
-            match status:
-                case 'pending': project_status_pending.disabled = True
-                case 'in_progress': project_status_progress.disabled = True
-                case 'pending_merge': project_status_merge.disabled = True
-                case 'done': project_status_done.disabled = True"""
-
-            # project_assigned_to = ui.Select(placeholder=assigned_to.display_name if assigned_to else None, options=list(map(lambda u : discord.SelectOption(label=u.display_name, value=u.id), users)))
 
             async def on_submit(self, interaction: discord.Interaction) -> None:
                 await function(interaction, self.project_displayname, self.project_description)
@@ -90,6 +92,7 @@ class TaskBot(discord.Client):
         if status_id not in TASK_STATUS_MAPPING:
             return
 
+        # TODO update_task() should return the updated task
         try:
             self.db.update_task(task_id, status=status_id)
         except DiscordTBException:
@@ -109,22 +112,21 @@ class TaskBot(discord.Client):
         if t.thread_id != -1:
             thread = await self.fetch_channel(t.thread_id)
             await thread.edit(name=self.generate_task_thread_title(t))
-            await self.set_thread_read_only(t.id, status_id == 'done')
+            
+            if status_id != 'done':
+                if thread.archived or thread.locked:
+                    await self.set_thread_read_only_status(thread, False)
+            
+            else:
+                if not thread.archived or not thread.locked:
+                    await self.set_thread_read_only_status(thread, True)
     
-    async def set_thread_read_only(self, task_id: int, read_only: bool = False) -> None:
-        """Lock a thread for further interaction."""
-
-        t = self.db.get_task_to_task_id(task_id)
-        if not t:
-            return
-
-        if t.thread_id == -1:
-            return
-
-        thread = await self.fetch_channel(t.thread_id)
+    async def set_thread_read_only_status(self, thread: discord.Thread, read_only: bool = False) -> None:
+        """Lock/Unlock a thread for further interaction."""
         await thread.edit(archived=read_only, locked=read_only)        
 
     def generate_task_string(self, task: Task) -> str:
+        """Generate a markdown formatted string to display in a discord chat."""
 
         number_formatting = f"[#{task.number}]"
         title_formatting = f"**{task.title}**"
@@ -145,10 +147,11 @@ class TaskBot(discord.Client):
         return '\n'.join(parts)
     
     def generate_task_thread_title(self, task: Task) -> str:
+        """Generate a string to use as a Discord thread title."""
         return f"[{task.number}{(', ' + TASK_STATUS_MAPPING[task.status]) if task.status else ''}] {task.title}"
     
     async def update_task(self, task_id: int, name: str = "", description: str = "", status: str = "", assigned_to: int = "") -> None:
-        """Update a task and perform some message changing."""
+        """Update a task and it's connected message content."""
 
         if not name and not description and not status and not assigned_to:
             return
