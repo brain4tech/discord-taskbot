@@ -104,14 +104,9 @@ class TaskBot(discord.Client):
         if status_id not in TASK_STATUS_MAPPING:
             return
 
-        # TODO update_task() should return the updated task
         try:
-            self.db.update_task(task_id, status=status_id)
+            t = self.db.update_task(task_id, status=status_id)
         except DiscordTBException:
-            return
-
-        t = self.db.get_task_to_task_id(task_id)
-        if not t:
             return
 
         c = self.db.get_project_to_id(t.related_project)
