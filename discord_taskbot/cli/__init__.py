@@ -35,7 +35,7 @@ class CLIHandler:
         parser.add_argument('--version', action='store_true', help="print version info and exit", dest="version")
 
         # activate subparsers (== subcommands)
-        subparsers = parser.add_subparsers(help='sub-command help')
+        subparsers = parser.add_subparsers(help='subcommand help')
 
         # 'run' subcommand
         parser_run = subparsers.add_parser(
@@ -45,12 +45,12 @@ class CLIHandler:
         parser_run.add_argument('envfile', help="attach an .env file")
         parser_run.set_defaults(func=self._subcommand_run)
 
-        # 'db-run' subcommand
+        # 'create-db' subcommand
         parser_run = subparsers.add_parser(
-            name='db-run',
-            description="Run and test the db connection startup script.",
-            help='run the db')
-        parser_run.set_defaults(func=self._subcommand_db_run)
+            name='create-db',
+            description="Create a production-ready database (if not existent).",
+            help='create the database')
+        parser_run.set_defaults(func=self._subcommand_create_db)
 
         self._parser = parser
 
@@ -88,7 +88,6 @@ class CLIHandler:
             self._parser.print_help()
             sys.exit()
         
-    
     def _subcommand_run(self, args: argparse.Namespace) -> None:
         import dotenv, os
         from pathlib import Path
@@ -104,9 +103,10 @@ class CLIHandler:
 
         BOT.run(TOKEN)
     
-    def _subcommand_db_run(self, args: argparse.Namespace) -> None:
+    def _subcommand_create_db(self, args: argparse.Namespace) -> None:
         from discord_taskbot.components.persistence import PersistenceAPI
 
+        # init the persistence api
         db = PersistenceAPI()
         db.startup()
 
