@@ -11,7 +11,7 @@ class PersistenceCache:
         """
         Add and update cache variables to speed up data access times.
         
-        It's the programmer's responsibility to syncronize cache and persistent storage.
+        It's the programmer's responsibility to synchronize cache and persistent storage.
 
         Methods:
             add
@@ -24,6 +24,12 @@ class PersistenceCache:
 
     def add(self, name: str, value: Any) -> None:
         """Add a new value to the cache."""
+
+        # ensure name of cache item is type string
+        # checks in other methods are not needed, as all of them check if the name (== string) exists
+        if not isinstance(name, str):
+            raise TypeError(f"Parameter type for 'name' is {type(name)} not str.")
+
         if name in vars(self):
             raise AttributeError(
                 f"Attribute '{name}' already exists in cache. If you want to update it use .update(name, value).")
@@ -33,7 +39,7 @@ class PersistenceCache:
         """Get a value from the cache. If it does not exist None is returned."""
         try:
             return self.__getattribute__(name)
-        except:
+        except AttributeError:
             return None
 
     def update(self, name: str, value: Any) -> None:
@@ -46,4 +52,5 @@ class PersistenceCache:
 
     def remove(self, name: str) -> None:
         """Remove a value from the cache."""
-        self.__delattr__(name)
+        if name in vars(self):
+            self.__delattr__(name)
