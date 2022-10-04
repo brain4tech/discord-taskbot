@@ -2,7 +2,7 @@
 Custom subclass of discord.Client.
 """
 
-from typing import Any
+from typing import Any, Type
 
 import discord
 from discord import app_commands
@@ -55,7 +55,7 @@ class TaskBot(discord.Client):
 
         return message
 
-    def generate_create_task_modal(self, project: str, function) -> ui.Modal:
+    def generate_create_task_modal(self, project: str, function) -> Type[ui.Modal]:
         """Generate a modal that creates a new task."""
 
         class CreateTaskModal(ui.Modal, title=f"Create new Task for '{project}'"):
@@ -69,7 +69,7 @@ class TaskBot(discord.Client):
 
         return CreateTaskModal
 
-    def generate_edit_project_modal(self, tag: str, displayname: str, description: str, function) -> ui.Modal:
+    def generate_edit_project_modal(self, tag: str, displayname: str, description: str, function) -> Type[ui.Modal]:
         """Generate a modal that edits a project's title and description."""
 
         class EditProjectModal(ui.Modal, title=f"Edit Project '{tag}'"):
@@ -84,7 +84,7 @@ class TaskBot(discord.Client):
 
         return EditProjectModal
 
-    def generate_edit_task_modal(self, title: str, description: str, function) -> ui.Modal:
+    def generate_edit_task_modal(self, title: str, description: str, function) -> Type[ui.Modal]:
         """Generate a modal that edits a task's title and description."""
 
         class EditTaskModal(ui.Modal, title=f"Edit Task '{title}'"):
