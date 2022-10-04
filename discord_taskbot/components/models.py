@@ -51,5 +51,5 @@ class Emoji(ORM_BASE):
     __tablename__ = 'emojis'
 
     id = Column(String, primary_key=True)
-    emoji = Column(String, nullable=False)
+    emoji = Column(String, nullable=False, unique=True)
     position = Column(Integer, nullable=False)
