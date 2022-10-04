@@ -7,6 +7,7 @@ class DiscordTBException(Exception):
     """Base exception."""
 
 
+# TODO use exception below
 class ProjectAlreadyExists(DiscordTBException):
     """Exception thrown when a project with same id already exists."""
 
@@ -22,6 +23,9 @@ class EmojiDoesNotExist(DiscordTBException):
 class CannotBeUpdated(DiscordTBException):
     """Exception thrown when a field can be updated only once."""
 
+
+class ProjectDoesNotExist(DiscordTBException):
+    """Exception thrown when a project does not exist."""
 
 class TaskDoesNotExist(DiscordTBException):
     """Exception thrown when a task does not exist."""
