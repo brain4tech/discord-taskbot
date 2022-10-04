@@ -102,8 +102,10 @@ class TaskBot(discord.Client):
 
         return EditTaskModal
 
-    async def update_task_status(self, task_id, status_id) -> None:
+    async def update_task_status(self, task_id: int, status_id: str) -> None:
         """Update a task's status and update the message accordingly."""
+
+        # TODO validate task_id
 
         if status_id not in TASK_STATUS_MAPPING:
             return
@@ -120,7 +122,7 @@ class TaskBot(discord.Client):
             m = await c.fetch_message(t.message_id)
             await m.edit(content=self.generate_task_string(t))
 
-        if t.thread_id != -1:
+        if t.thread_id and t.thread_id != -1:
             thread = await self.fetch_channel(t.thread_id)
             await thread.edit(name=self.generate_task_thread_title(t))
 

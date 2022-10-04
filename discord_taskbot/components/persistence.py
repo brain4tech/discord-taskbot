@@ -151,8 +151,9 @@ class PersistenceAPI:
             )
             session.add(p)
 
-            # add project id to static values
+            # add project task counter to cache and static values
             v = ORM_Value(name=p.id, value=0)
+            self._cache.add(v.name, v.value)
             session.add(v)
 
             session.commit()
@@ -180,10 +181,10 @@ class PersistenceAPI:
 
         return Project.from_orm(p)
 
-    def add_task(self, related_project: int, name: str, description: str) -> Task:
+    def add_task(self, related_project_id: int, name: str, description: str) -> Task:
         """Create a new task for a project."""
 
-        related_project = int(related_project)
+        related_project = int(related_project_id)
         name = str(name).strip()
         description = str(description).strip()
 
@@ -193,7 +194,7 @@ class PersistenceAPI:
             # add task
             t = ORM_Task(
                 related_project=related_project,
-                number=self._generate_task_number(related_project),
+                number=self._generate_task_number(related_project_id),
                 title=name,
                 description=description,
                 status='pending',
@@ -277,8 +278,10 @@ class PersistenceAPI:
 
         # ensure values have correct types
         try:
-            project_id = int(project_id)
-            channel_id = int(channel_id)
+            project_id = int(project_id) if project_id is not None else None
+            channel_id = int(channel_id) if channel_id is not None else None
+        except TypeError:
+            raise
         except ValueError:
             raise
 
@@ -300,9 +303,11 @@ class PersistenceAPI:
         """Get a task from a unique task value. Returns the Task or None if no results."""
 
         try:
-            task_id = int(task_id)
-            message_id = int(message_id)
-            thread_id = int(thread_id)
+            task_id = int(task_id) if task_id is not None else None
+            message_id = int(message_id) if message_id is not None else None
+            thread_id = int(thread_id) if thread_id is not None else None
+        except TypeError:
+            raise
         except ValueError:
             raise
 
@@ -328,7 +333,7 @@ class PersistenceAPI:
         """Check if passed channel id is already taken (== a project)."""
 
         with Session(self._engine) as session:
-            p: ORM_Project = session.query(ORM_Project).filter(ORM_Project.channel_id == channel_id)
+            p: ORM_Project = session.query(ORM_Project).filter(ORM_Project.channel_id == channel_id).first()
 
         # the query returns either something or None, and bool(None) -> False
         return bool(p)
