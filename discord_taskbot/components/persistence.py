@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 
 from discord_taskbot.utils.constants import TASK_EMOJI_IDS, DEFAULT_TASK_EMOJI_MAPPING, TASK_STATUS_IDS
 from .cache import PersistenceCache
-from .exceptions import ChannelAlreadyInUse, EmojiDoesNotExist, CannotBeUpdated, TaskDoesNotExist
+from .exceptions import ChannelAlreadyInUse, EmojiDoesNotExist, CannotBeUpdated, ProjectDoesNotExist, TaskDoesNotExist
 from .models import Project, Task, Value, Emoji, ORM_BASE
 
 __all__ = ['PersistenceAPI']
@@ -125,17 +125,26 @@ class PersistenceAPI:
 
             session.commit()
 
-    def add_project(self, tag: str, displayname: str, description: str, channel_id: int) -> Project:
+    def add_project(self, tag: str, display_name: str, description: str, channel_id: int) -> Project:
         """Create a new project."""
 
+        display_name = str(display_name).strip()
+        description = str(description).strip()
+
         # check if channel is already a project
+        # although channel_id is unique, check and raise custom exception for better ux
         if self.is_channel_in_use(channel_id):
             raise ChannelAlreadyInUse("This channel is already in use for another project.")
 
         with Session(self._engine) as session:
             # add project
-            p = Project(tag=tag, display_name=displayname, description=description, channel_id=channel_id)
-            p.id = self._generate_project_id()
+            p = Project(
+                tag=tag,
+                id=self._generate_project_id(),
+                display_name=display_name,
+                description=description,
+                channel_id=int(channel_id),
+            )
             session.add(p)
 
             # add project id to static values
@@ -146,16 +155,19 @@ class PersistenceAPI:
 
         return copy.copy(p)
 
-    def update_project(self, tag: str, displayname: str = "", description: str = "") -> Project:
+    def update_project(self, tag: str, display_name: str = "", description: str = "") -> Project:
         """Update a project's display name and description."""
-        displayname = str(displayname).strip()
+        display_name = str(display_name).strip()
         description = str(description).strip()
 
         with Session(self._engine) as session:
             p: Project = session.get(Project, tag)
 
-            if displayname:
-                p.display_name = displayname
+            if not p:
+                raise ProjectDoesNotExist(f"Project with tag '{tag}' does not exist.")
+
+            if display_name:
+                p.display_name = display_name
 
             if description:
                 p.description = description
@@ -164,24 +176,29 @@ class PersistenceAPI:
 
         return copy.copy(p)
 
-    def add_task(self, projectid, name: str, description: str) -> int:
+    def add_task(self, related_project: int, name: str, description: str) -> Task:
         """Create a new task for a project."""
 
+        related_project = int(related_project)
         name = str(name).strip()
         description = str(description).strip()
 
-        t = Task(related_project=projectid, title=name, description=description, message_id=-1)
+        # TODO check if related project exists
 
         with Session(self._engine) as session:
-            # set task number and update values
-            t.number = int(self._cache.get(str(projectid))) + 1
-            session.query(Value).filter(Value.name == projectid).first().value = str(t.number)
-            self._cache.update(str(projectid), t.number)
-
+            # add task
+            t = Task(
+                related_project=related_project,
+                number=self._generate_task_number(related_project),
+                title=name,
+                description=description,
+                status='pending',
+            )
             session.add(t)
+
             session.commit()
 
-            return t.id
+        return copy.copy(t)
 
     def update_task(self, task_id: int, name: str = "", description: str = "", status: str = "",
                     assigned_to: int = "") -> Task:
@@ -292,12 +309,14 @@ class PersistenceAPI:
         """Calculates, stores and returns a new project id integer from existing counters."""
 
         # retrieve counter from cache
+        # no need to check if the value exists in cache.
+        # it is in the cache UNLESS some other unknown code manipulates the cache.
         id_count = int(self._cache.get("PROJECT_ID_COUNT"))
 
         # increase counter
         id_count += 1
 
-        # update value indatabase
+        # update value in database
         with Session(self._engine) as session:
             v: Value = session.query(Value).filter(Value.name == "PROJECT_ID_COUNT").first()
             v.value = str(id_count)
@@ -309,6 +328,33 @@ class PersistenceAPI:
 
         # return generated id
         return id_count
+
+    def _generate_task_number(self, related_project_id: int) -> int:
+        """Calculates, stores and returns a task number integer for the related project from existing counters."""
+
+        # cast project id to string
+        related_project_id = str(related_project_id)
+
+        # retrieve counter from cache
+        # no need to check if the value exists in cache.
+        # it is in the cache UNLESS some other unknown code manipulates the cache.
+        task_number = int(self._cache.get(related_project_id))
+
+        # increase counter
+        task_number += 1
+
+        # update value in database
+        with Session(self._engine) as session:
+            v: Value = session.query(Value).filter(Value.name == related_project_id).first()
+            v.value = str(task_number)
+
+            session.commit()
+
+        # update value in cache if database storing was successful
+        self._cache.update(related_project_id, str(task_number))
+
+        # return generated number
+        return task_number
 
     def get_emoji_id_to_emoji(self, emoji: str) -> str | None:
         """Get the emoji id of an emoji."""
