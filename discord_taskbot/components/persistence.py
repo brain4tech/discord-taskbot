@@ -150,8 +150,9 @@ class PersistenceAPI:
             )
             session.add(p)
 
-            # add project id to static values
+            # add project task counter to cache and static values
             v = Value(name=p.id, value=0)
+            self._cache.add(v.name, v.value)
             session.add(v)
 
             session.commit()
