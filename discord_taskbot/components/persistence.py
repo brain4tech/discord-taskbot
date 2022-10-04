@@ -31,9 +31,11 @@ class PersistenceAPI:
     def startup(self) -> None:
         """Create the database and do some startup things."""
 
-        ### create engine and tables
+        # create engine and tables
         self._engine = create_engine("sqlite:///data.db", echo=True)
         ORM_BASE.metadata.create_all(self._engine)
+
+        # execute specialized database startup functions
         self._startup_create_runtime_vals()
         self._startup_project_id_value()
         self._startup_task_action_emojis()
@@ -69,6 +71,7 @@ class PersistenceAPI:
 
     def _startup_project_id_value(self) -> None:
         """Add project ids to Values table"""
+
         def is_int_value(x: Value) -> bool:
             """Small function to check if both name and value of a Value can be cast to an int."""
             try:
@@ -93,7 +96,7 @@ class PersistenceAPI:
                     session.add(Value(name=p, value=0))
                 else:
                     self._cache.add(str(p), existing_values[p])
-            
+
             session.commit()
 
     def _startup_task_action_emojis(self) -> None:
@@ -236,16 +239,21 @@ class PersistenceAPI:
         with Session(self._engine) as session:
             t: Task = session.query(Task).filter(Task.id == task_id).first()
 
+            if not t:
+                raise TaskDoesNotExist(f"Task with id '{task_id}' does not exist.")
+
             if t.message_id != -1:
                 raise CannotBeUpdated(
                     f"Message id of {task_id} cannot be updated because it already has a valid value.")
 
             t.message_id = message_id
-            
+
             session.commit()
 
     def update_task_thread_id(self, task_id: int, thread_id: int) -> None:
         """Update a task's thread id."""
+
+        # TODO different API soon
 
         # TODO technically, we don't need any checks. According to the docs, the thread-id is the same
         # as the thread's origin message
@@ -253,15 +261,18 @@ class PersistenceAPI:
         with Session(self._engine) as session:
             t: Task = session.query(Task).filter(Task.id == task_id).first()
 
+            if not t:
+                raise TaskDoesNotExist(f"Task with id '{task_id}' does not exist.")
+
             if t.thread_id != -1:
                 raise CannotBeUpdated(f"Thread id of {task_id} cannot be updated because it already has a valid value.")
 
             t.thread_id = thread_id
-            
+
             session.commit()
 
     def get_number_to_task(self, task_id: int) -> int | None:
-        """Get a task number to a given task id. This is independent from the project as each task has a unique id."""
+        """Get a task number to a given task id. This is independent of the project as each task has a unique id."""
         with Session(self._engine) as session:
             t: Task = session.query(Task).filter(Task.id == task_id).first()
             return t.number if t else None
@@ -377,7 +388,6 @@ class PersistenceAPI:
 
             e.emoji = emoji
 
-            
             session.commit()
 
     def get_task_action_emoji_mapping(self) -> dict[str, str]:
