@@ -2,9 +2,9 @@
 The actual discord bot.
 """
 
+import asyncio
 import traceback
 
-import asyncio
 import discord
 from sqlalchemy.exc import IntegrityError
 
@@ -37,7 +37,6 @@ async def on_message(message: discord.Message):
 
 @BOT.event
 async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
-    # print(f"New reaction {reaction.emoji} to message {reaction.message.id} by {user.name}.")
     channel = await BOT.fetch_channel(payload.channel_id)
     message = await channel.fetch_message(payload.message_id)
     user = await BOT.fetch_user(payload.user_id)
@@ -60,26 +59,16 @@ async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
     match emoji_id:
         case 'pending':
             await BOT.update_task_status(task.id, emoji_id)
+
         case 'in_progress':
             await BOT.update_task_status(task.id, emoji_id)
+
         case 'pending_merge':
             await BOT.update_task_status(task.id, emoji_id)
+
         case 'self_assign':
             await BOT.update_task(task.id, assigned_to=user.id)
 
-            # exclude feature of automatic thread creation on self-assignments
-            """
-            if task.thread_id == -1:
-                thread = await message.create_thread(name=BOT.generate_task_thread_title(task), auto_archive_duration=None)
-                try:
-                    BOT.db.update_task_thread_id(task.id, thread.id)
-                except CannotBeUpdated:
-                    pass
-            else:
-                thread = BOT.fetch_channel(task.thread_id)
-            
-            await thread.send(f"Task self-assigned by <@{user.id}>.")
-            """
         case 'open_discussion':
             thread = await message.create_thread(name=BOT.generate_task_thread_title(task))
             try:
@@ -96,8 +85,6 @@ async def ping(interaction: discord.Interaction):
     await interaction.response.send_message("Pong!")
     await asyncio.sleep(3)
     await interaction.delete_original_response()
-
-    # await interaction.channel.send("")
 
 
 @tree.command(name="newtask")
@@ -185,15 +172,7 @@ async def edit_task(interaction: discord.Interaction):
                 c = await BOT.fetch_channel(interaction.channel.id)
                 await c.edit(name=BOT.generate_task_thread_title(t))
 
-    t_assigned_user = None
-    if t.assigned_to and t.assigned_to != -1:
-        t_assigned_user = await BOT.fetch_user(t.assigned_to)
-
-    emoji_dict = {e.id: e.emoji for e in BOT.db.get_emojis()}
-
-    all_members = list(BOT.get_all_members())
-
-    modal = BOT.generate_edit_task_modal(t.title, t.description, t.status)
+    modal = BOT.generate_edit_task_modal(t.title, t.description, modal_func)
     await interaction.response.send_modal(modal())
 
 
@@ -262,23 +241,23 @@ async def assign_task(interaction: discord.Interaction, person: str = None) -> N
 
 
 @tree.command(name="newproject")
-async def new_project(interaction: discord.Interaction, id: str, displayname: str, description: str) -> None:
+async def new_project(interaction: discord.Interaction, project_id: str, displayname: str, description: str) -> None:
     """Assign a new project to this channel."""
 
     await interaction.response.defer()
     try:
-        BOT.db.add_project(id, displayname, description, interaction.channel_id)
+        BOT.db.add_project(project_id, displayname, description, interaction.channel_id)
     except IntegrityError:
-        await interaction.followup.send(f"Could not create project `{displayname}` as it already exists.")
+        await interaction.followup.send(f"Could not create project '{displayname}' as it already exists.")
     except DiscordTBException as e:
-        await interaction.followup.send(f"Could not create project `{displayname}`: {e}")
+        await interaction.followup.send(f"Could not create project '{displayname}': {e}")
     except Exception:
         traceback.print_exc()
-        await interaction.followup.send(f"Something went wrong while creating `{displayname}`.")
+        await interaction.followup.send(f"Something went wrong while creating '{displayname}'.")
 
     else:
         await interaction.followup.send(
-            f"Created new project `{displayname}`. From now on, all non-command messages will be deleted.")
+            f"Created new project '{displayname}'. From now on, all non-command messages will be deleted.")
 
 
 @tree.command(name="editproject")
@@ -296,9 +275,9 @@ async def edit_project(interaction: discord.Interaction) -> None:
         try:
             BOT.db.update_project(p.tag, new_displayname, new_description)
         except:
-            await interaction.followup.send(f"Something went wrong while updating `{p.tag}`.")
+            await interaction.followup.send(f"Something went wrong while updating '{p.tag}'.")
         else:
-            await interaction.followup.send(f"Successfully updated `{p.tag}`.")
+            await interaction.followup.send(f"Successfully updated '{p.tag}'.")
 
     modal = BOT.generate_edit_project_modal(p.tag, p.display_name, p.description, modal_func)
     await interaction.response.send_modal(modal())
