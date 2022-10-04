@@ -271,41 +271,57 @@ class PersistenceAPI:
 
             session.commit()
 
-    def get_number_to_task(self, task_id: int) -> int | None:
-        """Get a task number to a given task id. This is independent of the project as each task has a unique id."""
-        with Session(self._engine) as session:
-            t: Task = session.query(Task).filter(Task.id == task_id).first()
-            return t.number if t else None
+    def get_project(self, project_id: int = None, channel_id: int = None) -> Project | None:
+        """Get a project from a unique project value. Returns the Project or None if no results."""
 
-    def get_task_to_thread_id(self, thread_id: int) -> Task | None:
-        """Get a task through a thread id."""
-        with Session(self._engine) as session:
-            t: Task = session.query(Task).filter(Task.thread_id == thread_id).first()
-            return copy.copy(t) if t else None
+        # ensure values have correct types
+        try:
+            project_id = int(project_id)
+            channel_id = int(channel_id)
+        except ValueError:
+            raise
 
-    def get_task_to_message_id(self, message_id: int) -> Task | None:
-        """Get a task through a message id."""
-        with Session(self._engine) as session:
-            t: Task = session.query(Task).filter(Task.message_id == message_id).first()
-            return copy.copy(t) if t else None
+        p: Project
 
-    def get_task_to_task_id(self, task_id: int) -> Task | None:
-        """Get a task through a task id."""
         with Session(self._engine) as session:
-            t: Task = session.query(Task).filter(Task.id == task_id).first()
-            return copy.copy(t) if t else None
 
-    def get_project_to_channel(self, channel_id: int) -> Project | None:
-        """Get a project to a given channel. Returns the project or None if none found."""
-        with Session(self._engine) as session:
-            p: Project = session.query(Project).filter(Project.channel_id == channel_id).first()
-            return p
+            if project_id:
+                p = session.get(Project, project_id)
+                return copy.copy(p)
 
-    def get_project_to_id(self, project_id: int) -> Project | None:
-        """Get a task through a task id."""
+            if channel_id:
+                p = session.query(Project).filter(Project.channel_id == channel_id).first()
+                return copy.copy(p)
+
+        return None
+
+    def get_task(self, task_id: int = None, message_id: int = None, thread_id: int = None) -> Task | None:
+        """Get a task from a unique task value. Returns the Task or None if no results."""
+
+        try:
+            task_id = int(task_id)
+            message_id = int(message_id)
+            thread_id = int(thread_id)
+        except ValueError:
+            raise
+
+        t: Task
+
         with Session(self._engine) as session:
-            p: Task = session.query(Project).filter(Project.id == project_id).first()
-            return copy.copy(p) if p else None
+
+            if task_id:
+                t = session.get(Task, task_id)
+                return copy.copy(t)
+
+            if message_id and message_id != -1:
+                t = session.query(Task).filter(Task.message_id == message_id).first()
+                return copy.copy(t)
+
+            if thread_id and thread_id != -1:
+                t = session.query(Task).filter(Task.thread_id == thread_id).first()
+                return copy.copy(t)
+
+        return None
 
     def is_channel_in_use(self, channel_id) -> bool:
         """Check if passed channel id is already taken (== a project)."""
@@ -367,17 +383,17 @@ class PersistenceAPI:
         # return generated number
         return task_number
 
-    def get_emoji_id_to_emoji(self, emoji: str) -> str | None:
-        """Get the emoji id of an emoji."""
-        with Session(self._engine) as session:
-            e: Emoji = session.query(Emoji).filter(Emoji.emoji == emoji).first()
-            return e.id if e else None
-
     def get_emojis(self) -> list[Emoji]:
         """Get all emojis."""
         with Session(self._engine) as session:
             e: Emoji = session.query(Emoji).all()
             return e
+
+    def get_emoji_id_to_emoji(self, emoji: str) -> str | None:
+        """Get the emoji id of an emoji."""
+        with Session(self._engine) as session:
+            e: Emoji = session.query(Emoji).filter(Emoji.emoji == emoji).first()
+            return e.id if e else None
 
     def update_task_action_emoji(self, id: str, emoji: str) -> None:
         """Update a task action emoji."""
