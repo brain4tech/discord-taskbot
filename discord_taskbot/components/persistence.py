@@ -13,7 +13,8 @@ from sqlalchemy.orm import Session
 from discord_taskbot.utils.constants import TASK_EMOJI_IDS, DEFAULT_TASK_EMOJI_MAPPING, TASK_STATUS_IDS
 from .cache import PersistenceCache
 from .exceptions import ChannelAlreadyInUse, EmojiDoesNotExist, CannotBeUpdated, ProjectDoesNotExist, TaskDoesNotExist
-from .models import Project, Task, Value, Emoji, ORM_BASE
+from .models import ORM_Project, ORM_Task, ORM_Value, ORM_Emoji, ORM_BASE
+from .data_classes import Project, Task, Emoji, Value
 
 __all__ = ['PersistenceAPI']
 
@@ -45,7 +46,7 @@ class PersistenceAPI:
 
         # define static runtime values
         values = [
-            Value(name="PROJECT_ID_COUNT", value="0")
+            ORM_Value(name="PROJECT_ID_COUNT", value="0")
         ]
         val_dict = {k.name: k for k in values}
 
@@ -53,7 +54,7 @@ class PersistenceAPI:
             self._cache.add(v.name, v.value)
 
         with Session(self._engine) as session:
-            db_vals: list[Value] = session.query(Value).all()
+            db_vals: list[ORM_Value] = session.query(ORM_Value).all()
 
             # update existing env vars in cache
             for var in list(filter(lambda x: x.name in val_dict, db_vals)):
@@ -72,7 +73,7 @@ class PersistenceAPI:
     def _startup_project_id_value(self) -> None:
         """Add project ids to Values table"""
 
-        def is_int_value(x: Value) -> bool:
+        def is_int_value(x: ORM_Value) -> bool:
             """Small function to check if both name and value of a Value can be cast to an int."""
             try:
                 int(x.name)
@@ -84,16 +85,16 @@ class PersistenceAPI:
 
         with Session(self._engine) as session:
             # get existing projects from database
-            existing_projects: Iterable[int] = map(lambda x: int(x[0]), session.query(Project.id).all())
+            existing_projects: Iterable[int] = map(lambda x: int(x[0]), session.query(ORM_Project.id).all())
 
             # map all valid (see function above) values from database into a dict
             existing_values: dict[int, int] = {int(v.name): int(v.value)
-                                               for v in filter(is_int_value, session.query(Value).all())}
+                                               for v in filter(is_int_value, session.query(ORM_Value).all())}
 
             for p in existing_projects:
                 if p not in existing_values:
                     self._cache.add(str(p), 0)
-                    session.add(Value(name=p, value=0))
+                    session.add(ORM_Value(name=p, value=0))
                 else:
                     self._cache.add(str(p), existing_values[p])
 
@@ -119,11 +120,11 @@ class PersistenceAPI:
         with Session(self._engine) as session:
 
             # delete all existing emojis in table
-            session.query(Emoji).delete()
+            session.query(ORM_Emoji).delete()
 
             # (re) add emojis while considering their order
             for e_id, emoji in emoji_mapping.items():
-                session.add(Emoji(id=e_id, emoji=emoji, position=position_count))
+                session.add(ORM_Emoji(id=e_id, emoji=emoji, position=position_count))
                 position_count += 1
 
             session.commit()
@@ -141,7 +142,7 @@ class PersistenceAPI:
 
         with Session(self._engine) as session:
             # add project
-            p = Project(
+            p = ORM_Project(
                 tag=tag,
                 id=self._generate_project_id(),
                 display_name=display_name,
@@ -151,7 +152,7 @@ class PersistenceAPI:
             session.add(p)
 
             # add project id to static values
-            v = Value(name=p.id, value=0)
+            v = ORM_Value(name=p.id, value=0)
             session.add(v)
 
             session.commit()
@@ -164,7 +165,7 @@ class PersistenceAPI:
         description = str(description).strip()
 
         with Session(self._engine) as session:
-            p: Project = session.get(Project, tag)
+            p: ORM_Project = session.get(ORM_Project, tag)
 
             if not p:
                 raise ProjectDoesNotExist(f"Project with tag '{tag}' does not exist.")
@@ -177,7 +178,7 @@ class PersistenceAPI:
 
             session.commit()
 
-        return copy.copy(p)
+        return Project.from_orm(p)
 
     def add_task(self, related_project: int, name: str, description: str) -> Task:
         """Create a new task for a project."""
@@ -190,7 +191,7 @@ class PersistenceAPI:
 
         with Session(self._engine) as session:
             # add task
-            t = Task(
+            t = ORM_Task(
                 related_project=related_project,
                 number=self._generate_task_number(related_project),
                 title=name,
@@ -201,7 +202,7 @@ class PersistenceAPI:
 
             session.commit()
 
-        return copy.copy(t)
+        return Task.from_orm(t)
 
     def update_task(self, task_id: int, name: str = "", description: str = "", status: str = "",
                     assigned_to: int = "") -> Task:
@@ -213,7 +214,7 @@ class PersistenceAPI:
 
         with Session(self._engine) as session:
 
-            t: Task = session.get(Task, task_id)
+            t: ORM_Task = session.get(ORM_Task, task_id)
             if not t:
                 raise TaskDoesNotExist(f"Task with id '{task_id}' does not exist.")
 
@@ -231,13 +232,13 @@ class PersistenceAPI:
 
             session.commit()
 
-        return copy.copy(t)
+        return Task.from_orm(t)
 
     def update_task_message_id(self, task_id: int, message_id: int) -> None:
         """Update a task's message id."""
 
         with Session(self._engine) as session:
-            t: Task = session.query(Task).filter(Task.id == task_id).first()
+            t: ORM_Task = session.query(ORM_Task).filter(ORM_Task.id == task_id).first()
 
             if not t:
                 raise TaskDoesNotExist(f"Task with id '{task_id}' does not exist.")
@@ -259,7 +260,7 @@ class PersistenceAPI:
         # as the thread's origin message
 
         with Session(self._engine) as session:
-            t: Task = session.query(Task).filter(Task.id == task_id).first()
+            t: ORM_Task = session.query(ORM_Task).filter(ORM_Task.id == task_id).first()
 
             if not t:
                 raise TaskDoesNotExist(f"Task with id '{task_id}' does not exist.")
@@ -281,17 +282,17 @@ class PersistenceAPI:
         except ValueError:
             raise
 
-        p: Project
+        p: ORM_Project
 
         with Session(self._engine) as session:
 
             if project_id:
-                p = session.get(Project, project_id)
-                return copy.copy(p)
+                p = session.get(ORM_Project, project_id)
+                return Project.from_orm(p)
 
             if channel_id:
-                p = session.query(Project).filter(Project.channel_id == channel_id).first()
-                return copy.copy(p)
+                p = session.query(ORM_Project).filter(ORM_Project.channel_id == channel_id).first()
+                return Project.from_orm(p)
 
         return None
 
@@ -305,21 +306,21 @@ class PersistenceAPI:
         except ValueError:
             raise
 
-        t: Task
+        t: ORM_Task
 
         with Session(self._engine) as session:
 
             if task_id:
-                t = session.get(Task, task_id)
-                return copy.copy(t)
+                t = session.get(ORM_Task, task_id)
+                return Task.from_orm(t)
 
             if message_id and message_id != -1:
-                t = session.query(Task).filter(Task.message_id == message_id).first()
-                return copy.copy(t)
+                t = session.query(ORM_Task).filter(ORM_Task.message_id == message_id).first()
+                return Task.from_orm(t)
 
             if thread_id and thread_id != -1:
-                t = session.query(Task).filter(Task.thread_id == thread_id).first()
-                return copy.copy(t)
+                t = session.query(ORM_Task).filter(ORM_Task.thread_id == thread_id).first()
+                return Task.from_orm(t)
 
         return None
 
@@ -327,7 +328,7 @@ class PersistenceAPI:
         """Check if passed channel id is already taken (== a project)."""
 
         with Session(self._engine) as session:
-            p: Project = session.query(Project).filter(Project.channel_id == channel_id)
+            p: ORM_Project = session.query(ORM_Project).filter(ORM_Project.channel_id == channel_id)
 
         # the query returns either something or None, and bool(None) -> False
         return bool(p)
@@ -345,7 +346,7 @@ class PersistenceAPI:
 
         # update value in database
         with Session(self._engine) as session:
-            v: Value = session.query(Value).filter(Value.name == "PROJECT_ID_COUNT").first()
+            v: ORM_Value = session.query(ORM_Value).filter(ORM_Value.name == "PROJECT_ID_COUNT").first()
             v.value = str(id_count)
 
             session.commit()
@@ -372,7 +373,7 @@ class PersistenceAPI:
 
         # update value in database
         with Session(self._engine) as session:
-            v: Value = session.query(Value).filter(Value.name == related_project_id).first()
+            v: ORM_Value = session.query(ORM_Value).filter(ORM_Value.name == related_project_id).first()
             v.value = str(task_number)
 
             session.commit()
@@ -386,8 +387,8 @@ class PersistenceAPI:
     def get_emojis(self) -> list[Emoji]:
         """Get all emojis."""
         with Session(self._engine) as session:
-            e: list[Emoji] = session.query(Emoji).all()
-            return copy.deepcopy(e)
+            e_list: list[ORM_Emoji] = session.query(ORM_Emoji).all()
+            return [Emoji.from_orm(e) for e in e_list]
 
     def get_emoji(self, emoji_id: str = None, emoji: str = None) -> Emoji | None:
         """Get the emoji to the id."""
@@ -398,19 +399,19 @@ class PersistenceAPI:
         with Session(self._engine) as session:
 
             if emoji_id:
-                e: Emoji = session.get(Emoji, emoji_id)
-                return copy.copy(e)
+                e: ORM_Emoji = session.get(ORM_Emoji, emoji_id)
+                return Emoji.from_orm(e)
 
             if emoji:
-                e: Emoji = session.query(Emoji).filter(Emoji.emoji == emoji).first()
-                return copy.copy(e)
+                e: ORM_Emoji = session.query(ORM_Emoji).filter(ORM_Emoji.emoji == emoji).first()
+                return Emoji.from_orm(e)
 
         return None
 
     def update_task_action_emoji(self, task_id: str, emoji: str) -> None:
         """Update a task action emoji."""
         with Session(self._engine) as session:
-            e: Emoji = session.query(Emoji).filter(Emoji.id == task_id).first()
+            e: ORM_Emoji = session.query(ORM_Emoji).filter(ORM_Emoji.id == task_id).first()
             if not e:
                 raise EmojiDoesNotExist(f"Emoji '{task_id}' cannot be updated because it does not exist.")
 
@@ -423,6 +424,6 @@ class PersistenceAPI:
     def get_task_action_emoji_mapping(self) -> dict[str, str]:
         """Get all task action emoji in a map {id: emoji}."""
         with Session(self._engine) as session:
-            emojis: list[Emoji] = session.query(Emoji).order_by(Emoji.position).all()
+            emojis: list[ORM_Emoji] = session.query(ORM_Emoji).order_by(ORM_Emoji.position).all()
 
         return {e.id: e.emoji for e in emojis}
