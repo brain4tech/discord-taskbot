@@ -17,10 +17,10 @@ class Project(ORM_BASE):
     __tablename__ = 'projects'
 
     tag = Column(String, primary_key=True)
-    id = Column(Integer, nullable=False, default=-1)
-    display_name = Column(String)
-    description = Column(String)
-    channel_id = Column(Integer)
+    id = Column(Integer, nullable=False)
+    display_name = Column(String, nullable=False)
+    description = Column(String, nullable=False, default='')
+    channel_id = Column(Integer, nullable=False, unique=True)
 
 
 class Task(ORM_BASE):
@@ -29,13 +29,13 @@ class Task(ORM_BASE):
 
     id = Column(Integer, primary_key=True)
     related_project = Column(Integer, nullable=False)
-    number = Column(Integer, nullable=False, default=-1)
+    number = Column(Integer, nullable=False)
     title = Column(String, nullable=False)
-    description = Column(String)
-    status = Column(String)
+    description = Column(String, nullable=False, default='')
+    status = Column(String, nullable=False)
     assigned_to = Column(Integer)
     message_id = Column(Integer, nullable=False, default=-1)
-    thread_id = Column(Integer, nullable=False, default=-1)
+    thread_id = Column(Integer)
 
 
 class Value(ORM_BASE):
