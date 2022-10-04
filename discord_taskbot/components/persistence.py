@@ -407,16 +407,16 @@ class PersistenceAPI:
 
         return None
 
-    def update_task_action_emoji(self, id: str, emoji: str) -> None:
+    def update_task_action_emoji(self, task_id: str, emoji: str) -> None:
         """Update a task action emoji."""
         with Session(self._engine) as session:
-            e: Emoji = session.query(Emoji).filter(Emoji.id == id).first()
+            e: Emoji = session.query(Emoji).filter(Emoji.id == task_id).first()
             if not e:
-                raise EmojiDoesNotExist(f"Emoji '{id}' cannot be updated because it does not exist.")
+                raise EmojiDoesNotExist(f"Emoji '{task_id}' cannot be updated because it does not exist.")
 
             e.emoji = emoji
 
-            # TODO check if unique contrain of emoji column has been violated (catch exception)
+            # TODO check if unique constrain of emoji column has been violated (catch exception)
 
             session.commit()
 
