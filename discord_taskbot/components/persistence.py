@@ -184,7 +184,7 @@ class PersistenceAPI:
     def add_task(self, related_project_id: int, name: str, description: str) -> Task:
         """Create a new task for a project."""
 
-        related_project = int(related_project_id)
+        related_project_id = int(related_project_id)
         name = str(name).strip()
         description = str(description).strip()
 
@@ -193,7 +193,7 @@ class PersistenceAPI:
         with Session(self._engine) as session:
             # add task
             t = ORM_Task(
-                related_project=related_project,
+                related_project_id=related_project_id,
                 number=self._generate_task_number(related_project_id),
                 title=name,
                 description=description,
