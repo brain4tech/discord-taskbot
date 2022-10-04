@@ -53,7 +53,7 @@ async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
     if user.bot:
         return
 
-    emoji_id = BOT.db.get_emoji_id_to_emoji(str(payload.emoji))
+    emoji_id = BOT.db.get_emoji_id_to_emoji(emoji=str(payload.emoji))
     if not emoji_id:
         return
 
