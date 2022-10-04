@@ -386,14 +386,26 @@ class PersistenceAPI:
     def get_emojis(self) -> list[Emoji]:
         """Get all emojis."""
         with Session(self._engine) as session:
-            e: Emoji = session.query(Emoji).all()
-            return e
+            e: list[Emoji] = session.query(Emoji).all()
+            return copy.deepcopy(e)
 
-    def get_emoji_id_to_emoji(self, emoji: str) -> str | None:
-        """Get the emoji id of an emoji."""
+    def get_emoji(self, emoji_id: str = None, emoji: str = None) -> Emoji | None:
+        """Get the emoji to the id."""
+
+        emoji_id = str(emoji_id).strip()
+        emoji = str(emoji).strip()
+
         with Session(self._engine) as session:
-            e: Emoji = session.query(Emoji).filter(Emoji.emoji == emoji).first()
-            return e.id if e else None
+
+            if emoji_id:
+                e: Emoji = session.get(Emoji, emoji_id)
+                return copy.copy(e)
+
+            if emoji:
+                e: Emoji = session.query(Emoji).filter(Emoji.emoji == emoji).first()
+                return copy.copy(e)
+
+        return None
 
     def update_task_action_emoji(self, id: str, emoji: str) -> None:
         """Update a task action emoji."""
@@ -403,6 +415,8 @@ class PersistenceAPI:
                 raise EmojiDoesNotExist(f"Emoji '{id}' cannot be updated because it does not exist.")
 
             e.emoji = emoji
+
+            # TODO check if unique contrain of emoji column has been violated (catch exception)
 
             session.commit()
 
