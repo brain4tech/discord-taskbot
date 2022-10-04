@@ -21,6 +21,10 @@ class TaskBot(discord.Client):
         
         Primarily to add custom application commands, but it also provides method for modal generation
         and other higher-level methods for data manipulation.
+
+        Attributes:
+            tree    Discord App-Command tree
+            db      Direct access to database API
         
         """
         super().__init__(intents=intents, **options)
@@ -109,7 +113,7 @@ class TaskBot(discord.Client):
         except DiscordTBException:
             return
 
-        c = self.db.get_project_to_id(t.related_project)
+        c = self.db.get_project(project_id=t.related_project)
         c: discord.TextChannel = await self.fetch_channel(c.channel_id)
 
         if t.message_id != -1:
@@ -170,9 +174,9 @@ class TaskBot(discord.Client):
         except TaskDoesNotExist:
             return
 
-        t = self.db.get_task_to_task_id(task_id)
+        t = self.db.get_task(task_id=task_id)
 
-        c = self.db.get_project_to_id(t.related_project)
+        c = self.db.get_project(project_id=t.related_project)
         c: discord.TextChannel = await self.fetch_channel(c.channel_id)
 
         if t.message_id != -1:
