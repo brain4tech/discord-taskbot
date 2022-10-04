@@ -43,7 +43,7 @@ async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
     user = await BOT.fetch_user(payload.user_id)
 
     # check if message is a task
-    task = BOT.db.get_task_to_message_id(message.id)
+    task = BOT.db.get_task(message_id=message.id)
     if not task:
         return
 
@@ -81,7 +81,7 @@ async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
             await thread.send(f"Task self-assigned by <@{user.id}>.")
             """
         case 'open_discussion':
-            thread = await message.create_thread(name=BOT.generate_task_thread_title(task), auto_archive_duration=None)
+            thread = await message.create_thread(name=BOT.generate_task_thread_title(task))
             try:
                 BOT.db.update_task_thread_id(task.id, thread.id)
             except CannotBeUpdated:
@@ -107,7 +107,7 @@ async def new_task(interaction: discord.Interaction, title: str, description: st
     await interaction.response.defer()
 
     # check if channel id is valid
-    project = BOT.db.get_project_to_channel(interaction.channel_id)
+    project = BOT.db.get_project(channel_id=interaction.channel_id)
     if not project:
         await interaction.followup.send(
             f"This channel is not assigned to a project. Try again in a valid project channel. Entered information:\n\n{title}\n{description}")
@@ -121,7 +121,7 @@ async def new_task(interaction: discord.Interaction, title: str, description: st
         return
 
     await BOT.update_task_status(task_id, 'pending')
-    message: discord.Message = await BOT.send_new_task(interaction.channel, BOT.db.get_task_to_task_id(task_id))
+    message: discord.Message = await BOT.send_new_task(interaction.channel, BOT.db.get_task(task_id=task_id))
     BOT.db.update_task_message_id(task_id, message.id)
 
     await interaction.followup.send(f"Task created successfully.")
@@ -144,13 +144,13 @@ async def new_task_modal(interaction: discord.Interaction):
             return
 
         await BOT.update_task_status(task_id, 'pending')
-        message: discord.Message = await BOT.send_new_task(interaction.channel, BOT.db.get_task_to_task_id(task_id))
+        message: discord.Message = await BOT.send_new_task(interaction.channel, BOT.db.get_task(task_id=task_id))
         BOT.db.update_task_message_id(task_id, message.id)
         await interaction.edit_original_response(content=f"Task created successfully.")
         await asyncio.sleep(1)
         await interaction.delete_original_response()
 
-    project = BOT.db.get_project_to_channel(interaction.channel_id)
+    project = BOT.db.get_project(channel_id=interaction.channel_id)
     if not project:
         await interaction.response.send_message(
             f"This channel is not assigned to a project. Try again in a valid project channel.")
@@ -165,7 +165,7 @@ async def edit_task(interaction: discord.Interaction):
     """Edit a task's title and description with a modal."""
 
     # check if command is send in a task thread
-    t = BOT.db.get_task_to_thread_id(interaction.channel_id)
+    t = BOT.db.get_task(thread_id=interaction.channel_id)
     if not t:
         await interaction.response.send_message("Failure. Tasks can only be edited from their discussion threads.")
         await asyncio.sleep(3)
@@ -193,8 +193,7 @@ async def edit_task(interaction: discord.Interaction):
 
     all_members = list(BOT.get_all_members())
 
-    modal = BOT.generate_edit_task_modal(t.title, t.description, t.status, t_assigned_user, modal_func, all_members,
-                                         emoji_dict)
+    modal = BOT.generate_edit_task_modal(t.title, t.description, t.status)
     await interaction.response.send_modal(modal())
 
 
@@ -205,7 +204,7 @@ async def set_task_status(interaction: discord.Interaction, status: str) -> None
     await interaction.response.defer()
 
     # check if command is send in a task thread
-    t = BOT.db.get_task_to_thread_id(interaction.channel_id)
+    t = BOT.db.get_task(thread_id=interaction.channel_id)
     if not t:
         await interaction.followup.send("Failure. Tasks can only be edited from their discussion threads.")
         await asyncio.sleep(3)
@@ -230,7 +229,7 @@ async def assign_task(interaction: discord.Interaction, person: str = None) -> N
     await interaction.response.defer()
 
     # check if command is send in a task thread
-    t = BOT.db.get_task_to_thread_id(interaction.channel_id)
+    t = BOT.db.get_task(thread_id=interaction.channel_id)
     if not t:
         await interaction.followup.send("Failure. Tasks can only be edited from their discussion threads.")
         await asyncio.sleep(3)
@@ -286,7 +285,7 @@ async def new_project(interaction: discord.Interaction, id: str, displayname: st
 async def edit_project(interaction: discord.Interaction) -> None:
     """Edit a project with a pop-up."""
 
-    p = BOT.db.get_project_to_channel(interaction.channel_id)
+    p = BOT.db.get_project(channel_id=interaction.channel_id)
     if not p:
         await interaction.response.send_message(f"This channel is not bound to a project.")
         return
