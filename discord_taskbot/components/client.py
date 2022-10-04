@@ -115,8 +115,8 @@ class TaskBot(discord.Client):
         except DiscordTBException:
             return
 
-        c = self.db.get_project(project_id=t.related_project)
-        c: discord.TextChannel = await self.fetch_channel(c.channel_id)
+        p = self.db.get_project(project_id=t.related_project_id)
+        c: discord.TextChannel = await self.fetch_channel(p.channel_id)
 
         if t.message_id != -1:
             m = await c.fetch_message(t.message_id)
@@ -172,14 +172,12 @@ class TaskBot(discord.Client):
             return
 
         try:
-            self.db.update_task(task_id, name, description, status, assigned_to)
+            t = self.db.update_task(task_id, name, description, status, assigned_to)
         except TaskDoesNotExist:
             return
 
-        t = self.db.get_task(task_id=task_id)
-
-        c = self.db.get_project(project_id=t.related_project)
-        c: discord.TextChannel = await self.fetch_channel(c.channel_id)
+        p = self.db.get_project(project_id=t.related_project_id)
+        c: discord.TextChannel = await self.fetch_channel(p.channel_id)
 
         if t.message_id != -1:
             m = await c.fetch_message(t.message_id)

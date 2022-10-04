@@ -52,19 +52,19 @@ async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
     if user.bot:
         return
 
-    emoji_id = BOT.db.get_emoji_id_to_emoji(emoji=str(payload.emoji))
-    if not emoji_id:
+    emoji = BOT.db.get_emoji(emoji=str(payload.emoji))
+    if not emoji:
         return
 
-    match emoji_id:
+    match emoji.id:
         case 'pending':
-            await BOT.update_task_status(task.id, emoji_id)
+            await BOT.update_task_status(task.id, emoji.id)
 
         case 'in_progress':
-            await BOT.update_task_status(task.id, emoji_id)
+            await BOT.update_task_status(task.id, emoji.id)
 
         case 'pending_merge':
-            await BOT.update_task_status(task.id, emoji_id)
+            await BOT.update_task_status(task.id, emoji.id)
 
         case 'self_assign':
             await BOT.update_task(task.id, assigned_to=user.id)
@@ -76,7 +76,7 @@ async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
             except CannotBeUpdated:
                 pass
         case 'done':
-            await BOT.update_task_status(task.id, emoji_id)
+            await BOT.update_task_status(task.id, emoji.id)
 
 
 @tree.command()
@@ -101,15 +101,15 @@ async def new_task(interaction: discord.Interaction, title: str, description: st
         return
 
     try:
-        task_id = BOT.db.add_task(project.id, title, description)
+        task = BOT.db.add_task(project.id, title, description)
     except Exception:
         print(traceback.format_exc())
         await interaction.followup.send("Something went wrong while creating a new task.")
         return
 
-    await BOT.update_task_status(task_id, 'pending')
-    message: discord.Message = await BOT.send_new_task(interaction.channel, BOT.db.get_task(task_id=task_id))
-    BOT.db.update_task_message_id(task_id, message.id)
+    await BOT.update_task_status(task.id, 'pending')
+    message: discord.Message = await BOT.send_new_task(interaction.channel, task)
+    BOT.db.update_task_message_id(task.id, message.id)
 
     await interaction.followup.send(f"Task created successfully.")
     await asyncio.sleep(1)
@@ -124,15 +124,15 @@ async def new_task_modal(interaction: discord.Interaction):
         await interaction.response.send_message("Creating new task...")
 
         try:
-            task_id = BOT.db.add_task(project.id, title, description)
+            task = BOT.db.add_task(project.id, title, description)
         except Exception:
             print(traceback.format_exc())
             await interaction.followup.send("Something went wrong while creating a new task.")
             return
 
-        await BOT.update_task_status(task_id, 'pending')
-        message: discord.Message = await BOT.send_new_task(interaction.channel, BOT.db.get_task(task_id=task_id))
-        BOT.db.update_task_message_id(task_id, message.id)
+        await BOT.update_task_status(task.id, 'pending')
+        message: discord.Message = await BOT.send_new_task(interaction.channel, task)
+        BOT.db.update_task_message_id(task.id, message.id)
         await interaction.edit_original_response(content=f"Task created successfully.")
         await asyncio.sleep(1)
         await interaction.delete_original_response()
