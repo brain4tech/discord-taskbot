@@ -7,7 +7,7 @@ from sqlalchemy.orm import declarative_base
 
 ORM_BASE = declarative_base()
 
-__all__ = ['Project', 'Task', 'Value']
+__all__ = ['Project', 'Task', 'Value', 'Emoji', 'ORM_BASE']
 
 
 # TODO add table constructors
