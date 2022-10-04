@@ -97,7 +97,7 @@ async def new_task(interaction: discord.Interaction, title: str, description: st
     project = BOT.db.get_project(channel_id=interaction.channel_id)
     if not project:
         await interaction.followup.send(
-            f"This channel is not assigned to a project. Try again in a valid project channel. Entered information:\n\n{title}\n{description}")
+            f"This channel is not assigned to a project. Try again in a valid project channel. Entered information:\n```\n{title}\n{description}\n```")
         return
 
     try:
