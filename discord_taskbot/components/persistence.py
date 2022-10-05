@@ -153,7 +153,7 @@ class PersistenceAPI:
 
             # add project task counter to cache and static values
             v = ORM_Value(name=p.id, value=0)
-            self._cache.add(v.name, v.value)
+            self._cache.add(str(v.name), v.value)
             session.add(v)
 
             session.commit()
@@ -203,7 +203,7 @@ class PersistenceAPI:
 
             session.commit()
 
-        return Task.from_orm(t)
+            return Task.from_orm(t)
 
     def update_task(self, task_id: int, name: str = "", description: str = "", status: str = "",
                     assigned_to: int = "") -> Task:
@@ -233,7 +233,7 @@ class PersistenceAPI:
 
             session.commit()
 
-        return Task.from_orm(t)
+            return Task.from_orm(t)
 
     def update_task_message_id(self, task_id: int, message_id: int) -> None:
         """Update a task's message id."""
@@ -273,11 +273,12 @@ class PersistenceAPI:
 
             session.commit()
 
-    def get_project(self, project_id: int = None, channel_id: int = None) -> Project | None:
+    def get_project(self, tag: str = None, project_id: int = None, channel_id: int = None) -> Project | None:
         """Get a project from a unique project value. Returns the Project or None if no results."""
 
         # ensure values have correct types
         try:
+            tag = str(tag) if tag is not None else None
             project_id = int(project_id) if project_id is not None else None
             channel_id = int(channel_id) if channel_id is not None else None
         except TypeError:
@@ -289,13 +290,20 @@ class PersistenceAPI:
 
         with Session(self._engine) as session:
 
+            if tag:
+                p = session.get(ORM_Project, tag)
+                if p:
+                    return Project.from_orm(p)
+
             if project_id:
-                p = session.get(ORM_Project, project_id)
-                return Project.from_orm(p)
+                p = session.query(ORM_Project).filter(ORM_Project.id == project_id).first()
+                if p:
+                    return Project.from_orm(p)
 
             if channel_id:
                 p = session.query(ORM_Project).filter(ORM_Project.channel_id == channel_id).first()
-                return Project.from_orm(p)
+                if p:
+                    return Project.from_orm(p)
 
         return None
 
@@ -317,15 +325,18 @@ class PersistenceAPI:
 
             if task_id:
                 t = session.get(ORM_Task, task_id)
-                return Task.from_orm(t)
+                if t:
+                    return Task.from_orm(t)
 
             if message_id and message_id != -1:
                 t = session.query(ORM_Task).filter(ORM_Task.message_id == message_id).first()
-                return Task.from_orm(t)
+                if t:
+                    return Task.from_orm(t)
 
             if thread_id and thread_id != -1:
                 t = session.query(ORM_Task).filter(ORM_Task.thread_id == thread_id).first()
-                return Task.from_orm(t)
+                if t:
+                    return Task.from_orm(t)
 
         return None
 
@@ -405,11 +416,13 @@ class PersistenceAPI:
 
             if emoji_id:
                 e: ORM_Emoji = session.get(ORM_Emoji, emoji_id)
-                return Emoji.from_orm(e)
+                if e :
+                    return Emoji.from_orm(e)
 
             if emoji:
                 e: ORM_Emoji = session.query(ORM_Emoji).filter(ORM_Emoji.emoji == emoji).first()
-                return Emoji.from_orm(e)
+                if e:
+                    return Emoji.from_orm(e)
 
         return None
 
