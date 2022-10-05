@@ -9,7 +9,7 @@ from discord import app_commands
 from discord import ui
 
 from discord_taskbot.components.exceptions import DiscordTBException, TaskDoesNotExist
-from discord_taskbot.components.models import Task
+from discord_taskbot.components.data_classes import Task
 from discord_taskbot.utils.constants import DEFAULT_TASK_EMOJI_MAPPING, TASK_STATUS_MAPPING
 from .persistence import PersistenceAPI
 
