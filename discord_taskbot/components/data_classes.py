@@ -4,7 +4,7 @@ ORM models as normal classes.
 
 from __future__ import annotations
 
-from discord_taskbot.components.models import ORM_Project, ORM_Task, ORM_Value, ORM_Emoji
+from .models import ORM_Project, ORM_Task, ORM_Value, ORM_Emoji
 
 __all__ = ['Project', 'Task', 'Value', 'Emoji']
 
@@ -41,7 +41,7 @@ class Project(Data):
         """
 
         self._tag = str(tag).strip() if tag is not None else None
-        self._project_id = int(project_id) if project_id is not None else None
+        self._id = int(project_id) if project_id is not None else None
         self._display_name = str(display_name).strip() if display_name is not None else None
         self._description = str(description).strip() if description is not None else None
         self._channel_id = int(channel_id) if channel_id is not None else None
