@@ -3,15 +3,15 @@ Constant values across the backend.
 """
 
 DEFAULT_TASK_EMOJIS = (
-        '🔴',
-        '🟠',
-        '🟣',
-        '〰',
-        '🖐🏼',
-        '📰',
-        '➖',
-        '✅',
-    )
+    '🔴',
+    '🟠',
+    '🟣',
+    '〰',
+    '🖐🏼',
+    '📰',
+    '➖',
+    '✅',
+)
 
 TASK_EMOJI_IDS = [
     'pending',
@@ -25,7 +25,6 @@ TASK_EMOJI_IDS = [
 ]
 
 DEFAULT_TASK_EMOJI_MAPPING = dict(zip(TASK_EMOJI_IDS, DEFAULT_TASK_EMOJIS))
-
 
 TASK_STATUS_IDS = [
     'pending',
