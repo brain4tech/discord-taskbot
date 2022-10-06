@@ -74,6 +74,7 @@ async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
             try:
                 BOT.db.update_task_thread_id(task.id, thread.id)
             except CannotBeUpdated:
+                # TODO don't use pass but something else, this is hard to debug
                 pass
         case 'done':
             await BOT.update_task_status(task.id, emoji.id)
@@ -103,12 +104,14 @@ async def new_task(interaction: discord.Interaction, title: str, description: st
     try:
         task = BOT.db.add_task(project.id, title, description)
     except Exception:
-        print(traceback.format_exc())
         await interaction.followup.send("Something went wrong while creating a new task.")
         return
 
     await BOT.update_task_status(task.id, 'pending')
     message: discord.Message = await BOT.send_new_task(interaction.channel, task)
+
+    # TODO first send task content, secondly update task message id and then send task action emojis
+
     BOT.db.update_task_message_id(task.id, message.id)
 
     await interaction.followup.send(f"Task created successfully.")
@@ -131,6 +134,9 @@ async def new_task_modal(interaction: discord.Interaction):
             return
 
         await BOT.update_task_status(task.id, 'pending')
+
+        # TODO first, send message with task content, second store message id for task, then add reactions to message
+
         message: discord.Message = await BOT.send_new_task(interaction.channel, task)
         BOT.db.update_task_message_id(task.id, message.id)
         await interaction.edit_original_response(content=f"Task created successfully.")
