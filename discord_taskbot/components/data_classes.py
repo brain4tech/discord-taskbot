@@ -88,11 +88,11 @@ class Task(Data):
     _status: str
     _assigned_to: int
     _message_id: int
-    _thread_id: int
+    _has_thread: int
 
     def __init__(self, task_id: int = None, related_project_id: int = None, number: int = None, title: str = None,
                  description: str = None, status: str = None, assigned_to: int = None, message_id: int = None,
-                 thread_id: int = None) -> None:
+                 has_thread: bool = None) -> None:
         """
         Task information.
 
@@ -105,7 +105,8 @@ class Task(Data):
             status              Task status. Either 'pending', 'in_progress', 'pending_merge' or 'done'.
             assigned_to         Discord user id who this task is assigned to.
             message_id          Discord message id of the task's in-discord message.
-            thread_id           Discord thread id of the task's in-discord discussion thread.
+            has_thread          Whether a task's discussion thread has been opened.
+                                A thread's channel id equals its origin message id
         """
 
         self._id = int(task_id) if task_id is not None else None
@@ -116,7 +117,7 @@ class Task(Data):
         self._status = str(status).strip() if status is not None else None
         self._assigned_to = int(assigned_to) if assigned_to is not None else None
         self._message_id = int(message_id) if message_id is not None else None
-        self._thread_id = int(thread_id) if thread_id is not None else None
+        self._has_thread = bool(has_thread) if has_thread is not None else None
 
         super().__init__()
 
@@ -163,8 +164,8 @@ class Task(Data):
         return self._message_id
 
     @property
-    def thread_id(self) -> int:
-        return self._thread_id
+    def has_thread(self) -> int:
+        return self.has_thread
 
 
 class Value(Data):
