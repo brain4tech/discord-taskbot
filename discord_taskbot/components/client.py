@@ -156,8 +156,6 @@ class TaskBot(discord.Client):
             description_formatting,
         ]
 
-        print(parts)
-
         return '\n'.join(parts)
 
     def generate_task_thread_title(self, task: Task) -> str:
