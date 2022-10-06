@@ -158,7 +158,7 @@ class PersistenceAPI:
 
             session.commit()
 
-        return copy.copy(p)
+            return Project.from_orm(p)
 
     def update_project(self, tag: str, display_name: str = "", description: str = "") -> Project:
         """Update a project's display name and description."""
@@ -179,7 +179,7 @@ class PersistenceAPI:
 
             session.commit()
 
-        return Project.from_orm(p)
+            return Project.from_orm(p)
 
     def add_task(self, related_project_id: int, name: str, description: str) -> Task:
         """Create a new task for a project."""
@@ -266,7 +266,7 @@ class PersistenceAPI:
             if not t:
                 raise TaskDoesNotExist(f"Task with id '{task_id}' does not exist.")
 
-            if t.thread_id != -1:
+            if t.thread_id and t.thread_id != -1:
                 raise CannotBeUpdated(f"Thread id of {task_id} cannot be updated because it already has a valid value.")
 
             t.thread_id = thread_id
