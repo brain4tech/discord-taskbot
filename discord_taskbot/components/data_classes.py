@@ -165,7 +165,7 @@ class Task(Data):
 
     @property
     def has_thread(self) -> int:
-        return self.has_thread
+        return self._has_thread
 
 
 class Value(Data):
