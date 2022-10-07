@@ -163,8 +163,8 @@ class TaskBot(discord.Client):
         return f"[{task.number}{(', ' + TASK_STATUS_MAPPING[task.status]) if task.status else ''}] {task.title}"
 
     async def update_task(self, task_id: int, name: str = None, description: str = None, status: str = None,
-                          assigned_to: int = None, message_id: int = None, has_thread: bool = None) -> None:
-        """Update a task and it's connected message content."""
+                          assigned_to: int = None, message_id: int = None, has_thread: bool = None) -> Task:
+        """Update a task and it's connected message content and thread title."""
 
         if (name, description, status, assigned_to, message_id, has_thread) == (None, None, None, None, None, None):
             return
@@ -175,8 +175,14 @@ class TaskBot(discord.Client):
             return
 
         p = self.db.get_project(project_id=t.related_project_id)
-        c: discord.TextChannel = await self.fetch_channel(p.channel_id)
 
         if t.message_id != -1:
-            m = await c.fetch_message(t.message_id)
+            task_channel: discord.TextChannel = await self.fetch_channel(p.channel_id)
+            m = await task_channel.fetch_message(t.message_id)
             await m.edit(content=self.generate_task_string(t))
+
+        if t.has_thread:
+            task_thread = await self.fetch_channel(t.message_id)
+            await task_thread.edit(name=self.generate_task_thread_title(t))
+
+        return t
