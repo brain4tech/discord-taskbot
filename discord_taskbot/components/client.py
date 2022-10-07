@@ -162,15 +162,15 @@ class TaskBot(discord.Client):
         """Generate a string to use as a Discord thread title."""
         return f"[{task.number}{(', ' + TASK_STATUS_MAPPING[task.status]) if task.status else ''}] {task.title}"
 
-    async def update_task(self, task_id: int, name: str = "", description: str = "", status: str = "",
-                          assigned_to: int = "") -> None:
+    async def update_task(self, task_id: int, name: str = None, description: str = None, status: str = None,
+                          assigned_to: int = None, message_id: int = None, has_thread: bool = None) -> None:
         """Update a task and it's connected message content."""
 
-        if not name and not description and not status and not assigned_to:
+        if (name, description, status, assigned_to, message_id, has_thread) == (None, None, None, None, None, None):
             return
 
         try:
-            t = self.db.update_task(task_id, name, description, status, assigned_to)
+            t = self.db.update_task(task_id, name, description, status, assigned_to, message_id, has_thread)
         except TaskDoesNotExist:
             return
 
