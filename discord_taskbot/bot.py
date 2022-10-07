@@ -72,7 +72,7 @@ async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
         case 'open_discussion':
             thread = await message.create_thread(name=BOT.generate_task_thread_title(task))
             try:
-                BOT.db.update_task_thread_id(task.id, thread.id)
+                BOT.db.update_task(task.id, has_thread=True)
             except CannotBeUpdated:
                 # TODO don't use pass but something else, this is hard to debug
                 pass
@@ -112,7 +112,7 @@ async def new_task(interaction: discord.Interaction, title: str, description: st
 
     # TODO first send task content, secondly update task message id and then send task action emojis
 
-    BOT.db.update_task_message_id(task.id, message.id)
+    BOT.db.update_task(task.id, message_id=message.id)
 
     await interaction.followup.send(f"Task created successfully.")
     await asyncio.sleep(1)
@@ -138,7 +138,7 @@ async def new_task_modal(interaction: discord.Interaction):
         # TODO first, send message with task content, second store message id for task, then add reactions to message
 
         message: discord.Message = await BOT.send_new_task(interaction.channel, task)
-        BOT.db.update_task_message_id(task.id, message.id)
+        BOT.db.update_task(task.id, message_id=message.id)
         await interaction.edit_original_response(content=f"Task created successfully.")
         await asyncio.sleep(1)
         await interaction.delete_original_response()
@@ -174,9 +174,6 @@ async def edit_task(interaction: discord.Interaction):
             await interaction.followup.send(f"Something went wrong while updating task {t.number}.")
         else:
             await interaction.followup.send(f"Successfully updated task {t.number}. ")
-            if str(new_title).strip() != "":
-                c = await BOT.fetch_channel(interaction.channel.id)
-                await c.edit(name=BOT.generate_task_thread_title(t))
 
     modal = BOT.generate_edit_task_modal(t.title, t.description, modal_func)
     await interaction.response.send_modal(modal())

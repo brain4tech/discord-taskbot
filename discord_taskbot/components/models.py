@@ -2,7 +2,7 @@
 ORM models.
 """
 
-from sqlalchemy import Column, Integer, String
+from sqlalchemy import Column, Integer, String, Boolean
 from sqlalchemy.orm import declarative_base
 
 ORM_BASE = declarative_base()
@@ -35,7 +35,7 @@ class ORM_Task(ORM_BASE):
     status = Column(String, nullable=False)
     assigned_to = Column(Integer)
     message_id = Column(Integer, nullable=False, default=-1)
-    thread_id = Column(Integer)
+    has_thread = Column(Boolean, nullable=False, default=False)
 
 
 class ORM_Value(ORM_BASE):

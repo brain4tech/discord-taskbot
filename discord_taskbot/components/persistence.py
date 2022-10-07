@@ -160,10 +160,10 @@ class PersistenceAPI:
 
             return Project.from_orm(p)
 
-    def update_project(self, tag: str, display_name: str = "", description: str = "") -> Project:
+    def update_project(self, tag: str, display_name: str = None, description: str = None) -> Project:
         """Update a project's display name and description."""
-        display_name = str(display_name).strip()
-        description = str(description).strip()
+        display_name = str(display_name).strip() if display_name is not None else None
+        description = str(description).strip() if description is not None else None
 
         with Session(self._engine) as session:
             p: ORM_Project = session.get(ORM_Project, tag)
@@ -205,13 +205,16 @@ class PersistenceAPI:
 
             return Task.from_orm(t)
 
-    def update_task(self, task_id: int, name: str = "", description: str = "", status: str = "",
-                    assigned_to: int = "") -> Task:
+    def update_task(self, task_id: int, title: str = None, description: str = None, status: str = None,
+                    assigned_to: int = None, message_id: int = None, has_thread: bool = None) -> Task:
         """Update a task."""
 
-        name = str(name).strip()
-        description = str(description).strip()
-        status = str(status).strip()
+        title = str(title).strip() if title is not None else None
+        description = str(description).strip() if description is not None else None
+        status = str(status).strip() if status is not None else None
+        assigned_to = int(assigned_to) if assigned_to is not None else None
+        message_id = int(message_id) if message_id is not None else None
+        has_thread = bool(has_thread) if has_thread is not None else None
 
         with Session(self._engine) as session:
 
@@ -219,8 +222,8 @@ class PersistenceAPI:
             if not t:
                 raise TaskDoesNotExist(f"Task with id '{task_id}' does not exist.")
 
-            if name:
-                t.title = name
+            if title:
+                t.title = title
 
             if description:
                 t.description = description
@@ -231,47 +234,21 @@ class PersistenceAPI:
             if assigned_to:
                 t.assigned_to = int(assigned_to)
 
+            if message_id:
+                if t.message_id != -1:
+                    raise CannotBeUpdated(f"Message id of {task_id} cannot be updated because it already has a valid value.")
+
+                t.message_id = message_id
+
+            if has_thread:
+                if t.has_thread:
+                    raise CannotBeUpdated(f"Thread status of {task_id} cannot be updated because it already has a valid value.")
+
+                t.has_thread = True
+
             session.commit()
 
             return Task.from_orm(t)
-
-    def update_task_message_id(self, task_id: int, message_id: int) -> None:
-        """Update a task's message id."""
-
-        with Session(self._engine) as session:
-            t: ORM_Task = session.query(ORM_Task).filter(ORM_Task.id == task_id).first()
-
-            if not t:
-                raise TaskDoesNotExist(f"Task with id '{task_id}' does not exist.")
-
-            if t.message_id != -1:
-                raise CannotBeUpdated(
-                    f"Message id of {task_id} cannot be updated because it already has a valid value.")
-
-            t.message_id = message_id
-
-            session.commit()
-
-    def update_task_thread_id(self, task_id: int, thread_id: int) -> None:
-        """Update a task's thread id."""
-
-        # TODO different API soon
-
-        # TODO technically, we don't need any checks. According to the docs, the thread-id is the same
-        # as the thread's origin message
-
-        with Session(self._engine) as session:
-            t: ORM_Task = session.query(ORM_Task).filter(ORM_Task.id == task_id).first()
-
-            if not t:
-                raise TaskDoesNotExist(f"Task with id '{task_id}' does not exist.")
-
-            if t.thread_id and t.thread_id != -1:
-                raise CannotBeUpdated(f"Thread id of {task_id} cannot be updated because it already has a valid value.")
-
-            t.thread_id = thread_id
-
-            session.commit()
 
     def get_project(self, tag: str = None, project_id: int = None, channel_id: int = None) -> Project | None:
         """Get a project from a unique project value. Returns the Project or None if no results."""
@@ -308,12 +285,18 @@ class PersistenceAPI:
         return None
 
     def get_task(self, task_id: int = None, message_id: int = None, thread_id: int = None) -> Task | None:
-        """Get a task from a unique task value. Returns the Task or None if no results."""
+        """
+        Get a task from a unique task value. Returns the Task or None if no results.
+        thread_id is a synonym for message_id.
+        """
 
         try:
             task_id = int(task_id) if task_id is not None else None
             message_id = int(message_id) if message_id is not None else None
-            thread_id = int(thread_id) if thread_id is not None else None
+
+            if thread_id is not None:
+                message_id = int(thread_id)
+
         except TypeError:
             raise
         except ValueError:
@@ -330,11 +313,6 @@ class PersistenceAPI:
 
             if message_id and message_id != -1:
                 t = session.query(ORM_Task).filter(ORM_Task.message_id == message_id).first()
-                if t:
-                    return Task.from_orm(t)
-
-            if thread_id and thread_id != -1:
-                t = session.query(ORM_Task).filter(ORM_Task.thread_id == thread_id).first()
                 if t:
                     return Task.from_orm(t)
 
