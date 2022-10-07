@@ -174,9 +174,6 @@ async def edit_task(interaction: discord.Interaction):
             await interaction.followup.send(f"Something went wrong while updating task {t.number}.")
         else:
             await interaction.followup.send(f"Successfully updated task {t.number}. ")
-            if str(new_title).strip() != "":
-                c = await BOT.fetch_channel(interaction.channel.id)
-                await c.edit(name=BOT.generate_task_thread_title(t))
 
     modal = BOT.generate_edit_task_modal(t.title, t.description, modal_func)
     await interaction.response.send_modal(modal())
