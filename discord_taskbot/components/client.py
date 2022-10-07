@@ -122,8 +122,8 @@ class TaskBot(discord.Client):
             m = await c.fetch_message(t.message_id)
             await m.edit(content=self.generate_task_string(t))
 
-        if t.thread_id and t.thread_id != -1:
-            thread = await self.fetch_channel(t.thread_id)
+        if t.has_thread:
+            thread = await self.fetch_channel(t.message_id)
             await thread.edit(name=self.generate_task_thread_title(t))
 
             if status_id != 'done':
