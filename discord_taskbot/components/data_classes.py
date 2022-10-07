@@ -129,7 +129,7 @@ class Task(Data):
             raise TypeError(f"Passed project is type {type(orm_task)} not ORM_Task.")
 
         return Task(orm_task.id, orm_task.related_project_id, orm_task.number, orm_task.title, orm_task.description,
-                    orm_task.status, orm_task.assigned_to, orm_task.message_id, orm_task.thread_id)
+                    orm_task.status, orm_task.assigned_to, orm_task.message_id, orm_task.has_thread)
 
     @property
     def id(self) -> int:
