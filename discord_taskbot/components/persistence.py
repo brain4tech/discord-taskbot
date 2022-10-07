@@ -250,39 +250,6 @@ class PersistenceAPI:
 
             return Task.from_orm(t)
 
-    def update_task_message_id(self, task_id: int, message_id: int) -> None:
-        """Update a task's message id."""
-
-        with Session(self._engine) as session:
-            t: ORM_Task = session.query(ORM_Task).filter(ORM_Task.id == task_id).first()
-
-            if not t:
-                raise TaskDoesNotExist(f"Task with id '{task_id}' does not exist.")
-
-            if t.message_id != -1:
-                raise CannotBeUpdated(
-                    f"Message id of {task_id} cannot be updated because it already has a valid value.")
-
-            t.message_id = message_id
-
-            session.commit()
-
-    def update_task_thread_id(self, task_id: int, thread_id: int) -> None:
-        """Update a task's thread id."""
-
-        with Session(self._engine) as session:
-            t: ORM_Task = session.query(ORM_Task).filter(ORM_Task.id == task_id).first()
-
-            if not t:
-                raise TaskDoesNotExist(f"Task with id '{task_id}' does not exist.")
-
-            if t.thread_id and t.thread_id != -1:
-                raise CannotBeUpdated(f"Thread id of {task_id} cannot be updated because it already has a valid value.")
-
-            t.thread_id = thread_id
-
-            session.commit()
-
     def get_project(self, tag: str = None, project_id: int = None, channel_id: int = None) -> Project | None:
         """Get a project from a unique project value. Returns the Project or None if no results."""
 
