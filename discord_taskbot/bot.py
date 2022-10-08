@@ -46,11 +46,10 @@ async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
     if not task:
         return
 
-    if not user.bot:
-        await message.remove_reaction(payload.emoji, user)
-
     if user.bot:
         return
+    else:
+        await message.remove_reaction(payload.emoji, user)
 
     emoji = BOT.db.get_emoji(emoji=str(payload.emoji))
     if not emoji:
