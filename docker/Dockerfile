@@ -3,16 +3,19 @@ FROM python:3.10.6-bullseye
 
 WORKDIR /
 
-RUN pip install --upgrade pip
 RUN apt-get update
+RUN apt-get install git
+RUN pip install --upgrade pip
 
 # create needed directories
-RUN mkdir build
 RUN mkdir data
 
 # install discord_taskbot libary
-COPY *.whl build
-RUN for file in build/*.whl; do pip install --no-cache-dir $file; done;
+RUN git clone --branch main https://github.com/brain4tech/discord-taskbot
+WORKDIR /discord-taskbot
+RUN pip install .
+
+WORKDIR /
 
 RUN echo discord-taskbot
 
