@@ -80,6 +80,23 @@ async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
             await BOT.update_task_status(task.id, emoji.id)
 
 
+@BOT.event
+async def on_thread_create(thread: discord.Thread):
+    print ("New Thread!", thread)
+    task = BOT.db.get_task(thread_id=thread.id)
+    if task:
+        BOT.db.update_task(task.id, has_thread=True)
+        await thread.edit(name=BOT.generate_task_thread_title(task))
+
+
+@BOT.event
+async def on_thread_delete(thread: discord.Thread):
+    print ("Thread deleted!", thread)
+    task = BOT.db.get_task(thread_id=thread.id)
+    if task:
+        BOT.db.update_task(task.id, has_thread=False)
+
+
 @tree.command()
 async def ping(interaction: discord.Interaction):
     """Play the ping pong game!"""

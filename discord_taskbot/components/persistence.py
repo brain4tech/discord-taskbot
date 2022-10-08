@@ -240,11 +240,8 @@ class PersistenceAPI:
 
                 t.message_id = message_id
 
-            if has_thread:
-                if t.has_thread:
-                    raise CannotBeUpdated(f"Thread status of {task_id} cannot be updated because it already has a valid value.")
-
-                t.has_thread = True
+            if has_thread is not None:
+                t.has_thread = has_thread
 
             session.commit()
 
