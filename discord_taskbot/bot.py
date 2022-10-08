@@ -81,7 +81,6 @@ async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
 
 @BOT.event
 async def on_thread_create(thread: discord.Thread):
-    print ("New Thread!", thread)
     task = BOT.db.get_task(thread_id=thread.id)
     if task:
         BOT.db.update_task(task.id, has_thread=True)
@@ -90,7 +89,6 @@ async def on_thread_create(thread: discord.Thread):
 
 @BOT.event
 async def on_thread_delete(thread: discord.Thread):
-    print ("Thread deleted!", thread)
     task = BOT.db.get_task(thread_id=thread.id)
     if task:
         BOT.db.update_task(task.id, has_thread=False)
