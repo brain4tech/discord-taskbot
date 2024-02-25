@@ -3,8 +3,12 @@
 
 *Task management utility for small programming teams.*
 
+## WARNING: This project is archived
+I've been using this bot for some time. Me and my team liked it, but after the project was done, the necessity of this project also got eliminated.
+If I'll ever need the bot again, this project will be continued and updated, but until then it is archived. Feel free to use it or get inspired and create your own application.
+
 ### About
-Status: **Alpha**. See [Development](#development) for more.
+Status: **Alpha, archived**. See [Development](#development) for more.
 
 **Feature overview**
 - Create new projects and assign them to a text channel
